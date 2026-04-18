@@ -1,0 +1,29 @@
+worker_processes 1;
+pid /tmp/nginx.pid;
+events { worker_connections 256; }
+
+http {
+    server {
+        listen 8080;
+
+        location / {
+            set $auth_ok 0;
+            if ($http_authorization = "Bearer ${MCP_BEARER_TOKEN}") {
+                set $auth_ok 1;
+            }
+            if ($arg_token = "${MCP_BEARER_TOKEN}") {
+                set $auth_ok 1;
+            }
+            if ($auth_ok = 0) {
+                return 401 "Unauthorized\n";
+            }
+
+            proxy_pass http://127.0.0.1:8081;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_set_header Host $host;
+        }
+    }
+}

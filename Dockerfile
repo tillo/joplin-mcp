@@ -4,7 +4,7 @@
 FROM gitlab.mdapi.ch/mdapi/dependency_proxy/containers/python:3.12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs npm curl \
+    nodejs npm curl nginx gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Install supergateway globally (v7+ required for streamableHttp transport)
@@ -23,9 +23,12 @@ RUN pip install --no-cache-dir \
     "pydantic>=2.0.0" \
     "httpx>=0.24.0"
 
+COPY nginx.conf.template /etc/nginx/nginx.conf.template
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 EXPOSE 8080
 
-# streamableHttp transport: stateless per-request, endpoint at POST /mcp
-# Replaces sse which crashed on second concurrent connection.
-ENTRYPOINT ["supergateway", "--port", "8080", "--outputTransport", "streamableHttp", \
-            "--stdio", "python /app/joplin_server_mcp.py"]
+# nginx (8080) validates MCP_BEARER_TOKEN from Authorization header or ?token= query param,
+# then proxies to supergateway (8081, internal) using streamableHttp transport.
+ENTRYPOINT ["/app/start.sh"]
