@@ -8,7 +8,10 @@ fi
 
 envsubst '${MCP_BEARER_TOKEN}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
-supergateway --port 8081 --outputTransport streamableHttp \
-    --stdio "python /app/joplin_server_mcp.py" &
+(while true; do
+    supergateway --port 8081 --outputTransport streamableHttp \
+        --stdio "python /app/joplin_server_mcp.py" || true
+    sleep 1
+done) &
 
 exec nginx -g "daemon off;"
