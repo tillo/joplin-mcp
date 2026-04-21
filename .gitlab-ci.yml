@@ -6,6 +6,8 @@ buildkit:
     name: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/moby/buildkit:rootless
     entrypoint: [""]
   stage: build
+  tags:
+    - mdapi
   variables:
     BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
     CACHE_IMAGE: $CI_REGISTRY_IMAGE:cache
