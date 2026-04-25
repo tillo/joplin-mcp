@@ -1,5 +1,6 @@
 stages:
-    - build
+  - build
+  - notify
 
 buildkit:
   image:
@@ -33,7 +34,82 @@ buildkit:
         --export-cache type=registry,ref=$CACHE_IMAGE \
         --import-cache type=registry,ref=$CACHE_IMAGE \
         --opt platform=linux/amd64 \
-        --output type=image,\"name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,$CI_REGISTRY_IMAGE:latest\",push=true
+        --progress=plain \
+        --output type=image,\"name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,$CI_REGISTRY_IMAGE:latest\",push=true \
+        > build.log 2>&1
+      EXIT_CODE=$?
+      cat build.log
+      exit $EXIT_CODE
+  artifacts:
+    when: always
+    paths:
+      - build.log
+    expire_in: 1 hour
+
+notify-success:
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
+  stage: notify
+  tags:
+    - mdapi
+  variables:
+    GIT_DEPTH: "5"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: on_success
+  before_script:
+    - apk add --no-cache git curl python3
+  script:
+    - |
+      REASON=$(python3 - <<'PYEOF'
+      import re
+      try:
+          content = open('build.log').read()
+      except FileNotFoundError:
+          exit()
+      steps = {}
+      for m in re.finditer(r'^#(\d+) \[(\d+/\d+)\] (.+)$', content, re.MULTILINE):
+          steps[m.group(1)] = m.group(3).strip()
+      cached = set(re.findall(r'^#(\d+) CACHED', content, re.MULTILINE))
+      changed = [label for num, label in sorted(steps.items(), key=lambda x: int(x[0])) if num not in cached]
+      if changed:
+          print('\n'.join(changed))
+      PYEOF
+      )
+      if [ "$CI_PIPELINE_SOURCE" = "schedule" ] && [ -z "$REASON" ]; then
+        echo "All layers cached on scheduled run — nothing changed, skipping notification"
+        exit 0
+      fi
+      MSG=$(printf '%s:%s' "$CI_REGISTRY_IMAGE" "$CI_COMMIT_SHORT_SHA")
+      if [ "$CI_PIPELINE_SOURCE" != "schedule" ]; then
+        if [ "$CI_COMMIT_BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+          CHANGES=$(git log --oneline -5 2>/dev/null || true)
+        else
+          CHANGES=$(git log --oneline "${CI_COMMIT_BEFORE_SHA}..${CI_COMMIT_SHA}" 2>/dev/null || true)
+        fi
+        [ -n "$CHANGES" ] && MSG=$(printf '%s\n\nGit changes:\n%s' "$MSG" "$CHANGES")
+      fi
+      [ -n "$REASON" ] && MSG=$(printf '%s\n\nRebuilt layers:\n%s' "$MSG" "$REASON")
+      curl -sf \
+        --form-string "token=$PUSHOVER_API_TOKEN" \
+        --form-string "user=$PUSHOVER_USER_KEY" \
+        --form-string "title=Joplin MCP: new image pushed" \
+        --form-string "message=$MSG" \
+        https://api.pushover.net/1/messages.json
+
+notify-failure:
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
+  stage: notify
+  tags:
+    - mdapi
+  rules:
+    - when: on_failure
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      curl -sf \
+        --form-string "token=$PUSHOVER_API_TOKEN" \
+        --form-string "user=$PUSHOVER_USER_KEY" \
+        --form-string "title=Joplin MCP: build failed" \
+        --form-string "message=$(printf 'buildkit job failed.\n%s' "$CI_PIPELINE_URL")" \
+        --form-string "priority=1" \
+        https://api.pushover.net/1/messages.json
