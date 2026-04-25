@@ -1,5 +1,6 @@
 stages:
   - build
+  - scan
   - notify
 
 buildkit:
@@ -45,6 +46,81 @@ buildkit:
     paths:
       - build.log
     expire_in: 1 hour
+
+# Generates an SBOM with Syft and scans it with Grype.
+# Non-blocking: exits 0 regardless of findings so the pipeline continues.
+# Sends a Pushover notification only when HIGH or CRITICAL CVEs are found.
+# SBOM and vulnerability report are kept as artifacts for 7 days.
+scan:
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
+  stage: scan
+  tags:
+    - mdapi
+  rules:
+    - when: on_success
+  before_script:
+    - apk add --no-cache curl
+    - |
+      # Install Syft
+      curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+        | sh -s -- -b /usr/local/bin
+    - |
+      # Install Grype
+      curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+        | sh -s -- -b /usr/local/bin
+    - |
+      # Authenticate to registry so Syft/Grype can pull the image
+      mkdir -p ~/.docker
+      echo "{
+        \"auths\": {
+          \"${CI_REGISTRY}\": {
+            \"auth\": \"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"
+          }
+        }
+      }" > ~/.docker/config.json
+  script:
+    - IMAGE="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+    - echo "Generating SBOM for ${IMAGE}"
+    - syft "${IMAGE}" -o spdx-json=sbom.spdx.json
+    - echo "Scanning with Grype"
+    - grype sbom:sbom.spdx.json --output json > grype-report.json 2>/dev/null || true
+    - grype sbom:sbom.spdx.json --output table 2>/dev/null || true
+    - |
+      # Notify on HIGH or CRITICAL findings only
+      FINDINGS=$(python3 - <<'PYEOF'
+      import json, sys
+      try:
+          data = json.load(open('grype-report.json'))
+      except Exception:
+          sys.exit(0)
+      hits = [
+          f"{m['vulnerability']['id']} {m['vulnerability']['severity']} — {m['artifact']['name']}:{m['artifact']['version']}"
+          for m in data.get('matches', [])
+          if m['vulnerability'].get('severity', '').upper() in ('HIGH', 'CRITICAL')
+      ]
+      if hits:
+          print('\n'.join(hits[:20]))
+      PYEOF
+      )
+      if [ -n "$FINDINGS" ]; then
+        COUNT=$(echo "$FINDINGS" | wc -l)
+        curl -sf \
+          --form-string "token=$PUSHOVER_API_TOKEN" \
+          --form-string "user=$PUSHOVER_USER_KEY" \
+          --form-string "title=Joplin MCP: ${COUNT} HIGH/CRITICAL CVE(s)" \
+          --form-string "message=$(printf '%s\n\n%s' "$IMAGE" "$FINDINGS")" \
+          --form-string "priority=1" \
+          https://api.pushover.net/1/messages.json
+      else
+        echo "No HIGH or CRITICAL CVEs found."
+      fi
+  artifacts:
+    when: always
+    paths:
+      - sbom.spdx.json
+      - grype-report.json
+    expire_in: 7 days
+  allow_failure: true
 
 notify-success:
   image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
