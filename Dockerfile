@@ -1,7 +1,7 @@
 # joplin-mcp: wraps erickt23/joplin-server-mcp (stdio) with supergateway (HTTP/SSE)
 # Built and pushed to registry.mdapi.ch/mdapi/joplin-mcp by GitLab CI.
 
-FROM gitlab.mdapi.ch/mdapi/dependency_proxy/containers/python:3.12-slim
+FROM gitlab.mdapi.ch/mdapi/dependency_proxy/containers/python:slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs npm curl nginx gettext-base \
