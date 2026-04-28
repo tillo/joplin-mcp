@@ -1,0 +1,46 @@
+ignore:
+  - vulnerability: CVE-2025-13151  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2025-13836  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2025-59375  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2025-69720  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2025-69873  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2025-8194  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-1525  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-1526  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-1528  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-22036  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-2229  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-24001  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-25210  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-25547  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-26960  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-26996  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-27135  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-27651  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-27654  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-27903  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-27904  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-32141  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-32647  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-3298  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-33228  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-33671  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-33750  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-33937  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-33938  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-33939  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-33940  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-33941  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-34043  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-3805  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-39983  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-4046  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-41080  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-41324  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-41907  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-4437  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-4786  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-4800  # no fix available upstream; monitoring
+  - vulnerability: CVE-2026-5450  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-5928  # distro maintainer declared wont-fix; no patch available
+  - vulnerability: CVE-2026-6100  # no fix available upstream; monitoring
