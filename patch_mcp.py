@@ -14,7 +14,14 @@ VALIDATOR = '''\
     def _parse_if_string(cls, v):
         if isinstance(v, str):
             import json
-            return json.loads(v)
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError as e:
+                # supergateway may append a trailing '}' from the outer wrapper;
+                # strip it and retry
+                if "Extra data" in str(e) and v.endswith("}"):
+                    return json.loads(v[: e.pos])
+                raise
         return v
 '''
 
