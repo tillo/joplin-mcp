@@ -16,6 +16,11 @@ WORKDIR /app
 ARG JOPLIN_MCP_COMMIT=main
 ADD https://raw.githubusercontent.com/erickt23/joplin-server-mcp/${JOPLIN_MCP_COMMIT}/joplin_server_mcp.py /app/joplin_server_mcp.py
 
+# Patch: add model_validator to all *Input pydantic models so they accept
+# a JSON string as well as a dict (FastMCP passes a string for large bodies)
+COPY patch_mcp.py /app/patch_mcp.py
+RUN python /app/patch_mcp.py
+
 # Install Python dependencies
 RUN pip install --no-cache-dir \
     "mcp>=1.0.0" \
