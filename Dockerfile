@@ -3,7 +3,13 @@
 
 FROM gitlab.mdapi.ch/mdapi/dependency_proxy/containers/python:slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# ARG changes daily (passed from CI as $(date +%Y%m%d)) so this RUN's
+# cache key invalidates once per day, picking up newly-published security
+# patches via `apt upgrade` against current debian repos.
+ARG CACHEBUST_DAY=unset
+RUN echo "cache day: ${CACHEBUST_DAY}" && \
+    apt-get update && apt-get -y upgrade && \
+    apt-get install -y --no-install-recommends \
     nodejs npm curl nginx gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
