@@ -36,6 +36,7 @@ buildkit:
         --import-cache type=registry,ref=$CACHE_IMAGE \
         --opt platform=linux/amd64 \
         --opt build-arg:CACHEBUST_DAY=$(date +%Y%m%d) \
+        --opt build-arg:REGISTRY=${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/ \
         --progress=plain \
         --output type=image,\"name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,$CI_REGISTRY_IMAGE:latest\",push=true \
         > build.log 2>&1

@@ -1,7 +1,10 @@
 # joplin-mcp: wraps erickt23/joplin-server-mcp (stdio) with supergateway (HTTP/SSE)
-# Built and pushed to registry.mdapi.ch/mdapi/joplin-mcp by GitLab CI.
+# Public default pulls python:slim straight from Docker Hub. In a CI environment
+# with a registry pull-through cache (e.g. GitLab dependency proxy), set
+# --build-arg REGISTRY=<cache-prefix>/ to route the base image through it.
 
-FROM gitlab.mdapi.ch/mdapi/dependency_proxy/containers/python:slim
+ARG REGISTRY=
+FROM ${REGISTRY}python:slim
 
 # ARG changes daily (passed from CI as $(date +%Y%m%d)) so this RUN's
 # cache key invalidates once per day, picking up newly-published security
