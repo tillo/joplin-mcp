@@ -1,0 +1,15 @@
+# leak-prevention sweep 2026-05-23 — never commit secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.kubeconfig
+kubeconfig
+kubeconfig.*
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.pfx
+*.p12
+*.tsig
+.netrc
