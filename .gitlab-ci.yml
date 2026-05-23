@@ -194,6 +194,8 @@ notify-failure:
 # leak-prevention sweep 2026-05-23 — block secret leaks on every push
 secret-scan:
   stage: .pre
+  tags:
+    - mdapi
   image: zricethezav/gitleaks:latest
   script:
     - gitleaks dir --no-banner --redact --exit-code 1 .
