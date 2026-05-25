@@ -1,3 +1,8 @@
+include:
+  - project: mdapi/ci-templates
+    file: /secret-scan.yml
+    ref: main
+
 stages:
   - build
   - scan
@@ -191,12 +196,5 @@ notify-failure:
         --form-string "message=$(printf 'buildkit job failed.\n%s' "$CI_PIPELINE_URL")" \
         --form-string "priority=1" \
         https://api.pushover.net/1/messages.json
-# leak-prevention sweep 2026-05-23 — block secret leaks on every push
 secret-scan:
-  stage: .pre
-  tags:
-    - mdapi
-  image: zricethezav/gitleaks:latest
-  script:
-    - gitleaks dir --no-banner --redact --exit-code 1 .
-  allow_failure: false
+  extends: .secret-scan
