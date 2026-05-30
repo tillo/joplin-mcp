@@ -13,3 +13,4 @@ id_ecdsa*
 *.p12
 *.tsig
 .netrc
+__pycache__/

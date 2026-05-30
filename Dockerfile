@@ -21,14 +21,14 @@ RUN npm install -g supergateway
 
 WORKDIR /app
 
-# Pin the server script at a known commit to avoid surprise breakage
-ARG JOPLIN_MCP_COMMIT=main
-ADD https://raw.githubusercontent.com/erickt23/joplin-server-mcp/${JOPLIN_MCP_COMMIT}/joplin_server_mcp.py /app/joplin_server_mcp.py
-
-# Patch: add model_validator to all *Input pydantic models so they accept
-# a JSON string as well as a dict (FastMCP passes a string for large bodies)
-COPY patch_mcp.py /app/patch_mcp.py
-RUN python /app/patch_mcp.py
+# Vendored fork of erickt23/joplin-server-mcp (upstream pinned at
+# d463635437fcda55b212706a9e81233f237e1b25). Carries:
+#   - UTF-8 response-encoding fix for joppy (was patch_mcp.py:UTF8_FIX)
+#   - model_validator on every *Input model to accept JSON-string args
+#     (was patch_mcp.py:VALIDATOR)
+#   - patch primitives: joplin_append_to_section, joplin_replace_section,
+#     joplin_apply_patch — surgical edits that never serialize the full body
+COPY joplin_server_mcp.py /app/joplin_server_mcp.py
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
