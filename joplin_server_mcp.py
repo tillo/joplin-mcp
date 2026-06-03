@@ -17,6 +17,7 @@ Environment variables:
 
 import json
 import os
+import re
 import sys
 from enum import Enum
 from typing import Optional, List, Any
@@ -273,6 +274,15 @@ class UpdateNoteInput(BaseModel):
     title: Optional[str] = Field(default=None, description="New title for the note")
     body: Optional[str] = Field(default=None, description="New body content in Markdown")
     parent_id: Optional[str] = Field(default=None, description="Move note to this notebook ID")
+    force: Optional[bool] = Field(
+        default=False,
+        description=(
+            "Bypass the destructive-replacement safety guards (shrink-guard + "
+            "unexpanded-shell-substitution detector). Required for legitimate "
+            "migrations / drastic restructures that genuinely shrink the body. "
+            "Default false."
+        ),
+    )
 
 
 class GetNoteInput(BaseModel):
@@ -575,6 +585,92 @@ def joplin_get_note(params: GetNoteInput) -> str:
         return json.dumps({"error": str(e)}, indent=2)
 
 
+# --- destructive-replacement guards ------------------------------------------
+# `joplin_update_note` replaces the entire note body in one call. Three caller
+# bugs have shipped corrupt bodies to production over the last two weeks:
+#   2026-05-29  $(cat /tmp/joplin_updated.md)        -- unexpanded heredoc, 30 bytes
+#   2026-05-30  inline tool-call truncation         -- partial body, ~30 KB of 86 KB
+#   2026-06-03  $(cat /tmp/joplin_full_note_*.md)    -- unexpanded heredoc, 39 bytes
+# Each silently overwrote 80+ KB of structured backlog state. The patch
+# primitives (append_to_section / replace_section / apply_patch) solve the
+# daily-edit path but leave `update_note` itself unguarded. These two guards
+# reject the obvious failure shapes before `api.modify_note` is called.
+# Both can be bypassed with explicit `force=true` for legitimate migrations.
+
+# Match any unexpanded `$(...)` substitution that names a shell command we'd
+# realistically heredoc into a body (cat/curl/wget/head/tail/echo/printf).
+# Conservative on purpose: false positives would block legitimate notes that
+# happen to discuss shell snippets. We only fire if the marker sits in the
+# first 256 chars of the body -- that's where a runaway heredoc would land,
+# and well outside the "user mentioned shell syntax in a paragraph" case.
+_SHELL_SUB_RE = re.compile(
+    r'\$\(\s*(cat|curl|wget|head|tail|echo|printf)\b'
+)
+_SHELL_SUB_SCAN_LIMIT = 256
+_BODY_SHRINK_THRESHOLD = 0.5  # new body must be >= 50% of current
+_SHRINK_GUARD_MIN_CURRENT = 1000  # only guard notes that currently exceed this
+
+
+def _validate_body_replacement(api, note_id, new_body, force):
+    """Return an error-payload dict if the replacement looks destructive,
+    or None if the replacement is allowed to proceed.
+
+    Caller is responsible for `force` semantics: a True value here skips
+    both checks entirely.
+    """
+    if force:
+        return None
+    if not isinstance(new_body, str):
+        return None
+
+    # Guard 1: unexpanded shell-substitution markers near the start of the body
+    head = new_body[:_SHELL_SUB_SCAN_LIMIT]
+    m = _SHELL_SUB_RE.search(head)
+    if m:
+        return {
+            "error": "body_rejected_shell_substitution",
+            "message": (
+                "New body contains an unexpanded shell-substitution marker "
+                "near the start ({!r}). This is almost always a caller bug "
+                "(e.g. an unexpanded $(cat ...) heredoc). Pass force=true to "
+                "override if this is intentional."
+            ).format(m.group(0)),
+            "matched_pattern": m.group(0),
+            "matched_pos": m.start(),
+            "body_chars_new": len(new_body),
+        }
+
+    # Guard 2: catastrophic shrink. Only enforced for notes that currently
+    # have a meaningful body -- skip the check for new/small notes.
+    try:
+        current = api.get_note(note_id)
+    except Exception:
+        # If the fetch fails for any reason, don't block the write -- the
+        # caller's modify_note will surface the real error.
+        return None
+
+    current_body = (current.body or "") if current is not None else ""
+    current_len = len(current_body)
+    new_len = len(new_body)
+
+    if current_len >= _SHRINK_GUARD_MIN_CURRENT and new_len < current_len * _BODY_SHRINK_THRESHOLD:
+        return {
+            "error": "body_rejected_shrink_guard",
+            "message": (
+                "New body ({} chars) is less than {}% of the current body "
+                "({} chars). Refusing to commit a destructive shrink. Pass "
+                "force=true if this is intentional (e.g. migration / "
+                "drastic restructure)."
+            ).format(new_len, int(_BODY_SHRINK_THRESHOLD * 100), current_len),
+            "body_chars_new": new_len,
+            "body_chars_current": current_len,
+            "shrink_threshold_pct": int(_BODY_SHRINK_THRESHOLD * 100),
+        }
+
+    return None
+# -----------------------------------------------------------------------------
+
+
 @mcp.tool(
     name="joplin_update_note",
     annotations={
@@ -604,6 +700,16 @@ def joplin_update_note(params: UpdateNoteInput) -> str:
             return json.dumps({"error": "No update fields specified"}, indent=2)
 
         with _with_lock() as api:
+            # Reject destructive full-body replacements unless force=true.
+            # See _validate_body_replacement for rationale + the incidents
+            # that motivated each guard.
+            if params.body is not None:
+                err = _validate_body_replacement(
+                    api, params.note_id, params.body, bool(params.force)
+                )
+                if err is not None:
+                    return json.dumps(err, indent=2)
+
             api.modify_note(params.note_id, **update_data)
             return json.dumps({
                 "success": True,
