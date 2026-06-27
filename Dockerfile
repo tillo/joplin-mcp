@@ -19,6 +19,16 @@ RUN echo "cache day: ${CACHEBUST_DAY}" && \
 # Install supergateway globally (v7+ required for streamableHttp transport)
 RUN npm install -g supergateway
 
+# joplin CLI (baked) for the owner-share-sync CronJob, so the job needs no
+# runtime `npm install` — that was flaky (sqlite3 node-pre-gyp prebuilt miss +
+# transient DNS to registry.npmjs.org failed ~half the runs). The C toolchain
+# is present only for this layer so sqlite3 compiles deterministically instead
+# of depending on a prebuilt download; it's purged afterwards to stay lean.
+RUN apt-get update && apt-get install -y --no-install-recommends make g++ \
+    && npm install -g joplin@3.6.2 \
+    && apt-get purge -y make g++ && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /root/.npm
+
 WORKDIR /app
 
 # Vendored fork of erickt23/joplin-server-mcp (upstream pinned at
