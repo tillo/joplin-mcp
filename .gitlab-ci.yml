@@ -120,7 +120,7 @@ scan:
           --form-string "title=Joplin MCP: ${COUNT} HIGH/CRITICAL CVE(s)" \
           --form-string "message=$(printf '%s\n\n%s' "$IMAGE" "$FINDINGS")" \
           --form-string "priority=1" \
-          https://api.pushover.net/1/messages.json
+          https://api.pushover.net/1/messages.json || echo "pushover notify failed (non-fatal)"
       else
         echo "No HIGH or CRITICAL CVEs found."
       fi
@@ -179,7 +179,7 @@ notify-success:
         --form-string "user=$PUSHOVER_USER_KEY" \
         --form-string "title=Joplin MCP: new image pushed" \
         --form-string "message=$MSG" \
-        https://api.pushover.net/1/messages.json
+        https://api.pushover.net/1/messages.json || echo "pushover notify failed (non-fatal)"
 
 notify-failure:
   extends: .notify-failure
