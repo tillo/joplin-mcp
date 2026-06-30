@@ -1,5 +1,8 @@
 include:
   - project: mdapi/ci-templates
+    file: /notify.yml
+    ref: main
+  - project: mdapi/ci-templates
     file: /secret-scan.yml
     ref: main
 
@@ -179,22 +182,6 @@ notify-success:
         https://api.pushover.net/1/messages.json
 
 notify-failure:
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
-  stage: notify
-  tags:
-    - mdapi
-  rules:
-    - when: on_failure
-  before_script:
-    - apk add --no-cache curl
-  script:
-    - |
-      curl -sf \
-        --form-string "token=$PUSHOVER_API_TOKEN" \
-        --form-string "user=$PUSHOVER_USER_KEY" \
-        --form-string "title=Joplin MCP: build failed" \
-        --form-string "message=$(printf 'buildkit job failed.\n%s' "$CI_PIPELINE_URL")" \
-        --form-string "priority=1" \
-        https://api.pushover.net/1/messages.json
+  extends: .notify-failure
 secret-scan:
   extends: .secret-scan
