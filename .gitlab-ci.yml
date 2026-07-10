@@ -114,13 +114,8 @@ scan:
       )
       if [ -n "$FINDINGS" ]; then
         COUNT=$(echo "$FINDINGS" | wc -l)
-        curl -sf \
-          --form-string "token=$PUSHOVER_API_TOKEN" \
-          --form-string "user=$PUSHOVER_USER_KEY" \
-          --form-string "title=Joplin MCP: ${COUNT} HIGH/CRITICAL CVE(s)" \
-          --form-string "message=$(printf '%s\n\n%s' "$IMAGE" "$FINDINGS")" \
-          --form-string "priority=1" \
-          https://api.pushover.net/1/messages.json || echo "pushover notify failed (non-fatal)"
+        echo "${COUNT} HIGH/CRITICAL CVE(s) — notifications come from the daily grype curator digest (Windmill f/security/grype_ignore_curator)"
+        echo "$FINDINGS"
       else
         echo "No HIGH or CRITICAL CVEs found."
       fi
