@@ -47,15 +47,14 @@ buildkit:
         --opt build-arg:REGISTRY=$(echo "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}" | sed "s|:443||")/ \
         --progress=plain \
         --output type=image,\"name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,$CI_REGISTRY_IMAGE:latest\",push=true \
-        > build.log 2>&1
-      EXIT_CODE=$?
+        > build.log 2>&1 || EXIT_CODE=$?
       cat build.log
-      exit $EXIT_CODE
+      exit ${EXIT_CODE:-0}
   artifacts:
     when: always
     paths:
       - build.log
-    expire_in: 1 hour
+    expire_in: 7 days
 
 # Generates an SBOM with Syft and scans it with Grype.
 # Non-blocking: exits 0 regardless of findings so the pipeline continues.
