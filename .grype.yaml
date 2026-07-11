@@ -1,52 +1,4 @@
 ignore:
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-agent-base
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-data-uri-to-buffer
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-http-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-https-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-5435
-    package:
-      name: libc-bin
-      type: deb
-  - vulnerability: CVE-2026-5435
-    package:
-      name: libc6
-      type: deb
-  - vulnerability: CVE-2026-5773
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-5773
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-6276
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-6276
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-6321
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-6322
-    package:
-      name: node-ajv
-      type: deb
   - vulnerability: CVE-2026-7210
     package:
       name: libpython3.13-minimal
@@ -63,274 +15,462 @@ ignore:
     package:
       name: python3.13-minimal
       type: deb
-  - vulnerability: CVE-2026-8376
-    package:
-      name: perl-base
-      type: deb
-
-  # --- added by curator on 2026-07-10 (UTC) ---
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-10536
     package:
       name: curl
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-10536
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11822
     package:
       name: libsqlite3-0
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11824
     package:
       name: libsqlite3-0
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-11856
     package:
       name: curl
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-11856
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11940
     package:
       name: libpython3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11940
     package:
       name: libpython3.13-stdlib
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11940
     package:
       name: python3.13
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11940
     package:
       name: python3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11972
     package:
       name: libpython3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11972
     package:
       name: libpython3.13-stdlib
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11972
     package:
       name: python3.13
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-11972
     package:
       name: python3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-12064
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-12064
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-12151
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-13149
     package:
       name: node-brace-expansion
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-13676
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-41992
     package:
       name: gzip
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-42496
     package:
       name: perl-base
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-42497
     package:
       name: perl-base
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44728
     package:
       name: node-babel7
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44728
     package:
       name: node-babel7-runtime
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-45149
     package:
       name: node-brace-expansion
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-54369
     package:
       name: libacl1
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-54370
     package:
       name: libacl1
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-54371
     package:
       name: libattr1
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-8286
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-8286
     package:
       name: libcurl4t64
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8924
     package:
       name: curl
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8924
     package:
       name: libcurl4t64
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8926
     package:
       name: curl
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8926
     package:
       name: libcurl4t64
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8927
     package:
       name: curl
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8927
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-8932
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-8932
     package:
       name: libcurl4t64
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-9079
     package:
       name: curl
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-9079
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9080
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9080
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9496
     package:
       name: npm
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9538
     package:
       name: perl-base
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9545
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9545
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9547
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9547
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9669
     package:
       name: libpython3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9669
     package:
       name: libpython3.13-stdlib
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9669
     package:
       name: python3.13
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9669
     package:
       name: python3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-9697
+    package:
+      name: node-undici
+      type: deb
+
+  # --- added by curator on 2026-07-11 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-13151
+    package:
+      name: libtasn1-6
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-59375
+    package:
+      name: libexpat1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-69720
+    package:
+      name: libncursesw6
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-69720
+    package:
+      name: libtinfo6
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-69720
+    package:
+      name: ncurses-base
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-69720
+    package:
+      name: ncurses-bin
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2025-69873
+    package:
+      name: node-ajv
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-1525
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-1526
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-1528
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-22036
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-2229
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-24001
+    package:
+      name: node-diff
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-25210
+    package:
+      name: libexpat1
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-25547
+    package:
+      name: node-brace-expansion
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-26996
+    package:
+      name: node-minimatch
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-27903
+    package:
+      name: node-minimatch
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-27904
+    package:
+      name: node-minimatch
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-32141
+    package:
+      name: node-flatted
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33671
+    package:
+      name: node-anymatch
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33750
+    package:
+      name: node-brace-expansion
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-33937
+    package:
+      name: handlebars
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33938
+    package:
+      name: handlebars
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33939
+    package:
+      name: handlebars
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33940
+    package:
+      name: handlebars
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33941
+    package:
+      name: handlebars
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-34043
+    package:
+      name: node-serialize-javascript
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-3805
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-3805
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-39983
+    package:
+      name: node-agent-base
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-39983
+    package:
+      name: node-data-uri-to-buffer
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-39983
+    package:
+      name: node-http-proxy-agent
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-39983
+    package:
+      name: node-https-proxy-agent
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-41080
+    package:
+      name: libexpat1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-41324
+    package:
+      name: node-agent-base
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-41324
+    package:
+      name: node-data-uri-to-buffer
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-41324
+    package:
+      name: node-http-proxy-agent
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-41324
+    package:
+      name: node-https-proxy-agent
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-41907
+    package:
+      name: node-uuid
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-4800
+    package:
+      name: node-lodash
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-4800
+    package:
+      name: node-lodash-packages
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-5450
+    package:
+      name: libc-bin
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-5450
+    package:
+      name: libc6
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-5928
+    package:
+      name: libc-bin
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-5928
+    package:
+      name: libc6
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-59869
+    package:
+      name: node-js-yaml
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-59873
+    package:
+      name: node-tar
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-59874
+    package:
+      name: node-tar
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-6734
     package:
       name: node-undici
       type: deb
