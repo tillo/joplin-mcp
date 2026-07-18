@@ -1,44 +1,4 @@
 ignore:
-  - vulnerability: CVE-2026-7210
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-10536
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-10536
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-11822
-    package:
-      name: libsqlite3-0
-      type: deb
-  - vulnerability: CVE-2026-11824
-    package:
-      name: libsqlite3-0
-      type: deb
-  - vulnerability: CVE-2026-11856
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-11856
-    package:
-      name: libcurl4t64
-      type: deb
   - vulnerability: CVE-2026-11940
     package:
       name: libpython3.13-minimal
@@ -70,162 +30,6 @@ ignore:
   - vulnerability: CVE-2026-11972
     package:
       name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-12064
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-12064
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-12151
-    package:
-      name: node-undici
-      type: deb
-  - vulnerability: CVE-2026-13149
-    package:
-      name: node-brace-expansion
-      type: deb
-  - vulnerability: CVE-2026-13676
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-41992
-    package:
-      name: gzip
-      type: deb
-  - vulnerability: CVE-2026-42496
-    package:
-      name: perl-base
-      type: deb
-  - vulnerability: CVE-2026-42497
-    package:
-      name: perl-base
-      type: deb
-  - vulnerability: CVE-2026-44728
-    package:
-      name: node-babel7
-      type: deb
-  - vulnerability: CVE-2026-44728
-    package:
-      name: node-babel7-runtime
-      type: deb
-  - vulnerability: CVE-2026-45149
-    package:
-      name: node-brace-expansion
-      type: deb
-  - vulnerability: CVE-2026-54369
-    package:
-      name: libacl1
-      type: deb
-  - vulnerability: CVE-2026-54370
-    package:
-      name: libacl1
-      type: deb
-  - vulnerability: CVE-2026-54371
-    package:
-      name: libattr1
-      type: deb
-  - vulnerability: CVE-2026-8286
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8286
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-8924
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8924
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-8926
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8926
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-8927
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8927
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-8932
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8932
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-9079
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-9079
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-9080
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-9080
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-9496
-    package:
-      name: npm
-      type: deb
-  - vulnerability: CVE-2026-9538
-    package:
-      name: perl-base
-      type: deb
-  - vulnerability: CVE-2026-9545
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-9545
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-9547
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-9547
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-9669
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-9669
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-9669
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-9669
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-9697
-    package:
-      name: node-undici
       type: deb
   - vulnerability: CVE-2025-13151
     package:
@@ -423,74 +227,58 @@ ignore:
     package:
       name: node-undici
       type: deb
-
-  # --- added by curator on 2026-07-12 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-agent-base
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-data-uri-to-buffer
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-http-proxy-agent
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-https-proxy-agent
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-5435
     package:
       name: libc-bin
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-5435
     package:
       name: libc6
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-5773
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-5773
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-59871
     package:
       name: node-tar
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-6276
     package:
       name: curl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-6276
     package:
       name: libcurl4t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-6321
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-6322
     package:
       name: node-ajv
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8376
     package:
       name: perl-base
