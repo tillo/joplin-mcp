@@ -41,8 +41,12 @@ WORKDIR /app
 COPY joplin_server_mcp.py /app/joplin_server_mcp.py
 
 # Install Python dependencies
+# mcp capped <2.0.0: upstream's 2.0.0 (released 2026-07-28) restructured the
+# package and dropped mcp.server.fastmcp, which joplin_server_mcp.py imports
+# directly. The floating >=1.0.0 bound let a scheduled CACHEBUST_DAY rebuild
+# pick up 2.0.0 and ship a joplin-mcp image whose child process cannot start.
 RUN pip install --no-cache-dir \
-    "mcp>=1.0.0" \
+    "mcp>=1.0.0,<2.0.0" \
     "joppy>=1.0.0" \
     "pydantic>=2.0.0" \
     "httpx>=0.24.0"
