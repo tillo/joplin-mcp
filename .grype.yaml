@@ -415,30 +415,30 @@ ignore:
     package:
       name: perl-base
       type: deb
-
-  # --- added by curator on 2026-08-10 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: libpython3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: libpython3.13-stdlib
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: python3.13
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: python3.13-minimal
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-45623
     package:
       name: node-postcss
+      type: deb
+
+  # --- added by curator on 2026-08-11 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-18446
+    package:
+      name: node-ajv
       type: deb
