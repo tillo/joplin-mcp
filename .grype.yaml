@@ -435,10 +435,19 @@ ignore:
     package:
       name: node-postcss
       type: deb
-
-  # --- added by curator on 2026-08-11 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-18446
     package:
       name: node-ajv
+      type: deb
+
+  # --- added by curator on 2026-08-12 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-67213
+    package:
+      name: node-postcss
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-67214
+    package:
+      name: node-postcss
       type: deb
