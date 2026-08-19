@@ -47,10 +47,6 @@ ignore:
     package:
       name: python3.13-minimal
       type: deb
-  - vulnerability: CVE-2026-18446
-    package:
-      name: node-ajv
-      type: deb
   - vulnerability: CVE-2026-67213
     package:
       name: node-postcss
@@ -455,25 +451,36 @@ ignore:
     package:
       name: perl-base
       type: deb
-
-  # --- added by curator on 2026-08-18 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-14456
     package:
       name: libssl-dev
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-14456
     package:
       name: libssl3t64
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-14456
     package:
       name: openssl
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-14456
     package:
       name: openssl-provider-legacy
+      type: deb
+
+  # --- added by curator on 2026-08-19 (UTC) ---
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-13697
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-14643
+    package:
+      name: node-undici
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-45623
+    package:
+      name: node-postcss
       type: deb
