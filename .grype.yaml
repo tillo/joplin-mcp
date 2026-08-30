@@ -475,10 +475,59 @@ ignore:
     package:
       name: node-postcss
       type: deb
-
-  # --- added by curator on 2026-08-29 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-18446
     package:
       name: node-ajv
+      type: deb
+
+  # --- added by curator on 2026-08-30 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11940
+    package:
+      name: libpython3.13-minimal
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11940
+    package:
+      name: libpython3.13-stdlib
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11940
+    package:
+      name: python3.13
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11940
+    package:
+      name: python3.13-minimal
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11972
+    package:
+      name: libpython3.13-minimal
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11972
+    package:
+      name: libpython3.13-stdlib
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11972
+    package:
+      name: python3.13
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-11972
+    package:
+      name: python3.13-minimal
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-67213
+    package:
+      name: node-postcss
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-67214
+    package:
+      name: node-postcss
       type: deb
