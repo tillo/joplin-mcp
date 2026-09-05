@@ -1,32 +1,4 @@
 ignore:
-  - vulnerability: CVE-2026-13697
-    package:
-      name: node-undici
-      type: deb
-  - vulnerability: CVE-2026-14643
-    package:
-      name: node-undici
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-45623
-    package:
-      name: node-postcss
-      type: deb
   - vulnerability: CVE-2026-18446
     package:
       name: node-ajv
@@ -491,85 +463,259 @@ ignore:
     package:
       name: node-tar
       type: deb
-
-  # --- added by curator on 2026-09-04 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-14257
     package:
       name: node-brace-expansion
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-16221
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-agent-base
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-data-uri-to-buffer
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-http-proxy-agent
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-44240
     package:
       name: node-https-proxy-agent
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-5435
     package:
       name: libc-bin
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-5435
     package:
       name: libc6
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-59871
     package:
       name: node-tar
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-6321
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-6322
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-75899
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-75931
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-75975
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-76172
     package:
       name: node-ajv
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-8376
     package:
       name: perl-base
+      type: deb
+
+  # --- added by curator on 2026-09-05 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-33630
+    package:
+      name: libcares2
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: bsdutils
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: libblkid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: liblastlog2-2
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: libmount1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: libsmartcols1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: libuuid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: login
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: mount
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-76642
+    package:
+      name: util-linux
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: bsdutils
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: libblkid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: liblastlog2-2
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: libmount1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: libsmartcols1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: libuuid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: login
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: mount
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78408
+    package:
+      name: util-linux
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: bsdutils
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: libblkid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: liblastlog2-2
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: libmount1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: libsmartcols1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: libuuid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: login
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: mount
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78409
+    package:
+      name: util-linux
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: bsdutils
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: libblkid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: liblastlog2-2
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: libmount1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: libsmartcols1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: libuuid1
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: login
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: mount
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-78410
+    package:
+      name: util-linux
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-84375
+    package:
+      name: node-js-yaml
       type: deb
