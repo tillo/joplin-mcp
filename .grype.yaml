@@ -1,56 +1,4 @@
 ignore:
-  - vulnerability: CVE-2026-11940
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-11940
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-11940
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-11940
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-11972
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-11972
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-11972
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-11972
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-19534
-    package:
-      name: node-undici
-      type: deb
-  - vulnerability: CVE-2026-67213
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-67214
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-84961
-    package:
-      name: node-undici
-      type: deb
-  - vulnerability: CVE-2026-85152
-    package:
-      name: node-undici
-      type: deb
   - vulnerability: CVE-2026-13608
     package:
       name: curl
@@ -755,50 +703,56 @@ ignore:
     package:
       name: node-js-yaml
       type: deb
-
-  # --- added by curator on 2026-09-15 (UTC) ---
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-13697
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-14643
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: libpython3.13-minimal
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: libpython3.13-stdlib
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: python3.13
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-15308
     package:
       name: python3.13-minimal
       type: deb
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-45623
     package:
       name: node-postcss
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-84292
     package:
       name: node-ajv
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-84394
     package:
       name: node-ajv
+      type: deb
+
+  # --- added by curator on 2026-09-16 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-18446
+    package:
+      name: node-ajv
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-19499
+    package:
+      name: libc-bin
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-19499
+    package:
+      name: libc6
       type: deb
