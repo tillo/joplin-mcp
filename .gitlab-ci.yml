@@ -5,6 +5,9 @@ include:
   - project: mdapi/ci-templates
     file: /secret-scan.yml
     ref: main
+  - project: mdapi/ci-templates
+    file: /scan.yml
+    ref: main
 
 stages:
   - build
@@ -56,85 +59,11 @@ buildkit:
       - build.log
     expire_in: 7 days
 
-# Generates an SBOM with Syft and scans it with Grype.
-# Non-blocking: exits 0 regardless of findings so the pipeline continues.
-# Sends a Pushover notification only when HIGH or CRITICAL CVEs are found.
-# SBOM and vulnerability report are kept as artifacts for 7 days.
+# CVE scan via the shared job in mdapi/ci-templates (scan.yml):
+# pinned grype + sha256, registry auth, and notifies only for
+# HIGH/CRITICAL that actually have a fix.
 scan:
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
-  stage: scan
-  tags:
-    - mdapi
-  rules:
-    - when: on_success
-  before_script:
-    - apk add --no-cache curl python3 tar
-    - |
-      # Install Syft
-      # syft 1.52.0 — pinned release + sha256 (not curl|sh)
-      curl -sSfL --retry 3 --retry-delay 5 -o "syft_1.52.0_linux_amd64.tar.gz" "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_linux_amd64.tar.gz"
-      curl -sSfL --retry 3 --retry-delay 5 -o "syft-checksums.txt" "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_checksums.txt"
-      grep " syft_1.52.0_linux_amd64.tar.gz$" "syft-checksums.txt" | sha256sum -c -
-      tar xzf "syft_1.52.0_linux_amd64.tar.gz" syft
-      mv syft /usr/local/bin/syft && chmod +x /usr/local/bin/syft
-      rm -f "syft_1.52.0_linux_amd64.tar.gz" "syft-checksums.txt"
-    - |
-      # Install Grype
-      # grype 0.111.1 — pinned release + sha256 (not curl|sh)
-      curl -sSfL --retry 3 --retry-delay 5 -o "grype_0.111.1_linux_amd64.tar.gz" "https://github.com/anchore/grype/releases/download/v0.111.1/grype_0.111.1_linux_amd64.tar.gz"
-      curl -sSfL --retry 3 --retry-delay 5 -o "grype-checksums.txt" "https://github.com/anchore/grype/releases/download/v0.111.1/grype_0.111.1_checksums.txt"
-      grep " grype_0.111.1_linux_amd64.tar.gz$" "grype-checksums.txt" | sha256sum -c -
-      tar xzf "grype_0.111.1_linux_amd64.tar.gz" grype
-      mv grype /usr/local/bin/grype && chmod +x /usr/local/bin/grype
-      rm -f "grype_0.111.1_linux_amd64.tar.gz" "grype-checksums.txt"
-    - |
-      # Authenticate to registry so Syft/Grype can pull the image
-      mkdir -p ~/.docker
-      echo "{
-        \"auths\": {
-          \"${CI_REGISTRY}\": {
-            \"auth\": \"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"
-          }
-        }
-      }" > ~/.docker/config.json
-  script:
-    - IMAGE="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-    - echo "Generating SBOM for ${IMAGE}"
-    - syft "${IMAGE}" -o spdx-json=sbom.spdx.json
-    - echo "Scanning with Grype"
-    - grype sbom:sbom.spdx.json --output json > grype-report.json 2>/dev/null || true
-    - grype sbom:sbom.spdx.json --output table 2>/dev/null || true
-    - |
-      # Notify on HIGH or CRITICAL findings only
-      FINDINGS=$(python3 - <<'PYEOF'
-      import json, sys
-      try:
-          data = json.load(open('grype-report.json'))
-      except Exception:
-          sys.exit(0)
-      hits = [
-          f"{m['vulnerability']['id']} {m['vulnerability']['severity']} — {m['artifact']['name']}:{m['artifact']['version']}"
-          for m in data.get('matches', [])
-          if m['vulnerability'].get('severity', '').upper() in ('HIGH', 'CRITICAL')
-      ]
-      if hits:
-          print('\n'.join(hits[:20]))
-      PYEOF
-      )
-      if [ -n "$FINDINGS" ]; then
-        COUNT=$(echo "$FINDINGS" | wc -l)
-        echo "${COUNT} HIGH/CRITICAL CVE(s) — notifications come from the daily grype curator digest (Windmill f/security/grype_ignore_curator)"
-        echo "$FINDINGS"
-      else
-        echo "No HIGH or CRITICAL CVEs found."
-      fi
-  artifacts:
-    when: always
-    paths:
-      - sbom.spdx.json
-      - grype-report.json
-    expire_in: 7 days
-  allow_failure: true
+  extends: .grype-scan
 
 notify-success:
   image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
