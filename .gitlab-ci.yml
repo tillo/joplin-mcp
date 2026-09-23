@@ -24,6 +24,26 @@ buildkit:
   variables:
     BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
     CACHE_IMAGE: $CI_REGISTRY_IMAGE:cache
+  # ⛔⛔ This job used to publish :latest from EVERY pipeline, branches included —
+  # it had no `rules:` at all. Combined with a Deployment on `imagePullPolicy:
+  # Always` + Keel `policy: force`, that made a plain `git push` of any branch a
+  # PRODUCTION DEPLOY, with neither merge nor review in the path.
+  #
+  # Demonstrated on mdapi/keycloak 2026-09-22: pipeline 35876, on an unmerged
+  # branch, published :latest and the running pod picked it up about ten minutes
+  # BEFORE the MR was merged.
+  #
+  # ⭐ The build still runs everywhere — losing MR validation would be a real cost
+  # and the build is what catches a broken Dockerfile. Only the TAG SET is
+  # conditional: the floating tag Keel deploys from is minted on the default
+  # branch only, while branches and MRs publish just the immutable SHA tag.
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      variables:
+        IMAGE_TAGS: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,$CI_REGISTRY_IMAGE:latest"
+    - when: on_success
+      variables:
+        IMAGE_TAGS: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
   before_script:
     - mkdir -p ~/.docker
     - |
@@ -49,7 +69,7 @@ buildkit:
         --opt build-arg:CACHEBUST_DAY=$(date +%Y%m%d) \
         --opt build-arg:REGISTRY=$(echo "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}" | sed "s|:443||")/ \
         --progress=plain \
-        --output type=image,\"name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,$CI_REGISTRY_IMAGE:latest\",push=true \
+        --output type=image,\"name=${IMAGE_TAGS}\",push=true \
         > build.log 2>&1 || EXIT_CODE=$?
       cat build.log
       exit ${EXIT_CODE:-0}
