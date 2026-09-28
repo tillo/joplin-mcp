@@ -16,20 +16,30 @@ RUN echo "cache day: ${CACHEBUST_DAY}" && \
     nodejs npm curl nginx gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Install supergateway globally (v7+ required for streamableHttp transport)
-RUN npm install -g supergateway
-
-# joplin CLI (baked) for the owner-share-sync CronJob, so the job needs no
-# runtime `npm install` — that was flaky (sqlite3 node-pre-gyp prebuilt miss +
-# transient DNS to registry.npmjs.org failed ~half the runs). The C toolchain
-# is present only for this layer so sqlite3 compiles deterministically instead
-# of depending on a prebuilt download; it's purged afterwards to stay lean.
-RUN apt-get update && apt-get install -y --no-install-recommends make g++ \
-    && npm install -g joplin@3.6.2 \
-    && apt-get purge -y make g++ && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* /root/.npm
-
 WORKDIR /app
+
+# Node CLI tooling (supergateway HTTP/SSE bridge + joplin CLI, baked for the
+# owner-share-sync CronJob) installed as a LOCAL project instead of
+# `npm install -g`. The local install honours the `overrides` map in
+# package.json, which forces CVE-fixed versions of joplin's vulnerable
+# transitive deps (tar, sharp, terminal-kit, js-yaml, form-data, nanoid, …) —
+# `npm install -g` ignores `overrides`, which is why the grype scan kept
+# reporting "CVE HIGH/CRITICAL con correzione" in joplin's tree.
+#
+# The C toolchain is present only for this layer so sqlite3 compiles
+# deterministically instead of depending on a prebuilt download; it's purged
+# afterwards to stay lean. `npm` is purged too: after `apt-get purge -y npm &&
+# apt-get autoremove`, the whole /usr/share/nodejs library tree (handlebars,
+# pacote, picomatch, http-cache-semantics, …) is cascade-removed because the
+# `nodejs` package that stays depends only on libnode115 + node-corepack — that
+# removes the second, unrelated source of npm CVEs in the scan.
+COPY package.json /app/package.json
+RUN apt-get update && apt-get install -y --no-install-recommends make g++ \
+    && npm install \
+    && ln -s /app/node_modules/.bin/joplin /usr/local/bin/joplin \
+    && ln -s /app/node_modules/.bin/supergateway /usr/local/bin/supergateway \
+    && apt-get purge -y npm make g++ && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /root/.npm
 
 # Vendored fork of erickt23/joplin-server-mcp (upstream pinned at
 # d463635437fcda55b212706a9e81233f237e1b25). Carries:
