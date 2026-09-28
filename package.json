@@ -1,0 +1,27 @@
+{
+  "name": "joplin-mcp-node-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node CLI tooling baked into the joplin-mcp image (supergateway bridge + joplin CLI). A local install so `overrides` can pin CVE-fixed transitive versions — `npm install -g` ignores overrides.",
+  "dependencies": {
+    "supergateway": "^4.0.0",
+    "joplin": "3.6.2"
+  },
+  "overrides": {
+    "tar": "7.5.22",
+    "terminal-kit": "2.11.7",
+    "string-kit": "0.19.5",
+    "adm-zip": "0.6.1",
+    "fast-xml-parser": "4.5.7",
+    "form-data": "4.0.6",
+    "request": {
+      "form-data": "2.5.6"
+    },
+    "js-yaml": "4.3.2",
+    "multiparty": "4.3.1",
+    "nanoid": "3.3.18",
+    "sharp": "0.35.5",
+    "image-size": "2.0.4",
+    "linkify-it": "5.0.2"
+  }
+}
