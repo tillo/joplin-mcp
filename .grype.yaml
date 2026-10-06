@@ -7,38 +7,6 @@ ignore:
     package:
       name: node-undici
       type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-15308
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-45623
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-84292
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-84394
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-18446
-    package:
-      name: node-ajv
-      type: deb
   - vulnerability: CVE-2026-19499
     package:
       name: libc-bin
@@ -50,30 +18,6 @@ ignore:
   - vulnerability: CVE-2026-19534
     package:
       name: node-undici
-      type: deb
-  - vulnerability: CVE-2026-67213
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-67214
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-82049
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-82049
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-82049
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-82049
-    package:
-      name: python3.13-minimal
       type: deb
   - vulnerability: CVE-2026-84933
     package:
@@ -114,22 +58,6 @@ ignore:
   - vulnerability: CVE-2026-19931
     package:
       name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-66046
-    package:
-      name: libexpat1
-      type: deb
-  - vulnerability: CVE-2026-73646
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-76956
-    package:
-      name: libexpat1
-      type: deb
-  - vulnerability: CVE-2026-76957
-    package:
-      name: libexpat1
       type: deb
   - vulnerability: CVE-2026-80229
     package:
@@ -195,18 +123,6 @@ ignore:
     package:
       name: node-brace-expansion
       type: deb
-  - vulnerability: CVE-2026-13676
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-44728
-    package:
-      name: node-babel7
-      type: deb
-  - vulnerability: CVE-2026-44728
-    package:
-      name: node-babel7-runtime
-      type: deb
   - vulnerability: CVE-2026-45149
     package:
       name: node-brace-expansion
@@ -223,30 +139,6 @@ ignore:
     package:
       name: libcares2
       type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: libpython3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: libpython3.13-stdlib
-      type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: python3.13
-      type: deb
-  - vulnerability: CVE-2026-7210
-    package:
-      name: python3.13-minimal
-      type: deb
-  - vulnerability: CVE-2026-73088
-    package:
-      name: node-browserslist
-      type: deb
-  - vulnerability: CVE-2026-73089
-    package:
-      name: node-browserslist
-      type: deb
   - vulnerability: CVE-2026-8286
     package:
       name: curl
@@ -302,10 +194,6 @@ ignore:
   - vulnerability: CVE-2026-9080
     package:
       name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-9496
-    package:
-      name: npm
       type: deb
   - vulnerability: CVE-2026-9538
     package:
@@ -339,10 +227,6 @@ ignore:
     package:
       name: ncurses-bin
       type: deb
-  - vulnerability: CVE-2025-69873
-    package:
-      name: node-ajv
-      type: deb
   - vulnerability: CVE-2026-1525
     package:
       name: node-undici
@@ -363,10 +247,6 @@ ignore:
     package:
       name: node-undici
       type: deb
-  - vulnerability: CVE-2026-24001
-    package:
-      name: node-diff
-      type: deb
   - vulnerability: CVE-2026-25547
     package:
       name: node-brace-expansion
@@ -383,141 +263,17 @@ ignore:
     package:
       name: node-minimatch
       type: deb
-  - vulnerability: CVE-2026-32141
-    package:
-      name: node-flatted
-      type: deb
-  - vulnerability: CVE-2026-33671
-    package:
-      name: node-anymatch
-      type: deb
   - vulnerability: CVE-2026-33750
     package:
       name: node-brace-expansion
-      type: deb
-  - vulnerability: CVE-2026-33937
-    package:
-      name: handlebars
-      type: deb
-  - vulnerability: CVE-2026-33938
-    package:
-      name: handlebars
-      type: deb
-  - vulnerability: CVE-2026-33939
-    package:
-      name: handlebars
-      type: deb
-  - vulnerability: CVE-2026-33940
-    package:
-      name: handlebars
-      type: deb
-  - vulnerability: CVE-2026-33941
-    package:
-      name: handlebars
-      type: deb
-  - vulnerability: CVE-2026-34043
-    package:
-      name: node-serialize-javascript
-      type: deb
-  - vulnerability: CVE-2026-39983
-    package:
-      name: node-agent-base
-      type: deb
-  - vulnerability: CVE-2026-39983
-    package:
-      name: node-data-uri-to-buffer
-      type: deb
-  - vulnerability: CVE-2026-39983
-    package:
-      name: node-http-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-39983
-    package:
-      name: node-https-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-41324
-    package:
-      name: node-agent-base
-      type: deb
-  - vulnerability: CVE-2026-41324
-    package:
-      name: node-data-uri-to-buffer
-      type: deb
-  - vulnerability: CVE-2026-41324
-    package:
-      name: node-http-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-41324
-    package:
-      name: node-https-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-41907
-    package:
-      name: node-uuid
-      type: deb
-  - vulnerability: CVE-2026-59869
-    package:
-      name: node-js-yaml
-      type: deb
-  - vulnerability: CVE-2026-59873
-    package:
-      name: node-tar
-      type: deb
-  - vulnerability: CVE-2026-59874
-    package:
-      name: node-tar
       type: deb
   - vulnerability: CVE-2026-6734
     package:
       name: node-undici
       type: deb
-  - vulnerability: CVE-2026-73086
-    package:
-      name: node-postcss
-      type: deb
-  - vulnerability: CVE-2026-73566
-    package:
-      name: node-tar
-      type: deb
-  - vulnerability: CVE-2026-93687
-    package:
-      name: node-braces
-      type: deb
-  - vulnerability: CVE-2026-93690
-    package:
-      name: node-uri-js
-      type: deb
-  - vulnerability: CVE-2026-93748
-    package:
-      name: node-got
-      type: deb
-  - vulnerability: CVE-2026-93749
-    package:
-      name: node-postcss
-      type: deb
   - vulnerability: CVE-2026-14257
     package:
       name: node-brace-expansion
-      type: deb
-  - vulnerability: CVE-2026-16221
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-agent-base
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-data-uri-to-buffer
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-http-proxy-agent
-      type: deb
-  - vulnerability: CVE-2026-44240
-    package:
-      name: node-https-proxy-agent
       type: deb
   - vulnerability: CVE-2026-5435
     package:
@@ -526,34 +282,6 @@ ignore:
   - vulnerability: CVE-2026-5435
     package:
       name: libc6
-      type: deb
-  - vulnerability: CVE-2026-59871
-    package:
-      name: node-tar
-      type: deb
-  - vulnerability: CVE-2026-6321
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-6322
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-75899
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-75931
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-75975
-    package:
-      name: node-ajv
-      type: deb
-  - vulnerability: CVE-2026-76172
-    package:
-      name: node-ajv
       type: deb
   - vulnerability: CVE-2026-33630
     package:
@@ -703,14 +431,19 @@ ignore:
     package:
       name: util-linux
       type: deb
-  - vulnerability: CVE-2026-84375
-    package:
-      name: node-js-yaml
-      type: deb
-
-  # --- added by curator on 2026-10-01 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-82560
     package:
       name: perl-base
+      type: deb
+
+  # --- added by curator on 2026-10-06 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-102276
+    package:
+      name: node-brace-expansion
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-102278
+    package:
+      name: node-brace-expansion
       type: deb
