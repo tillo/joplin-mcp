@@ -455,20 +455,37 @@ ignore:
     package:
       name: libstdc++6
       type: deb
-
-  # --- added by curator on 2026-10-09 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-95619
     package:
       name: gcc-14-base
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-95619
     package:
       name: libgcc-s1
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-95619
     package:
       name: libstdc++6
+      type: deb
+
+  # --- added by curator on 2026-10-12 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-107778
+    package:
+      name: libgssapi-krb5-2
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-107778
+    package:
+      name: libk5crypto3
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-107778
+    package:
+      name: libkrb5-3
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-107778
+    package:
+      name: libkrb5support0
       type: deb
