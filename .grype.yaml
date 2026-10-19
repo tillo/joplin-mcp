@@ -483,15 +483,28 @@ ignore:
     package:
       name: libkrb5support0
       type: deb
-
-  # --- added by curator on 2026-10-15 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-107161
     package:
       name: libsasl2-2
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-107161
     package:
       name: libsasl2-modules-db
+      type: deb
+
+  # --- added by curator on 2026-10-19 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-109829
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-109869
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-87018
+    package:
+      name: node-undici
       type: deb
