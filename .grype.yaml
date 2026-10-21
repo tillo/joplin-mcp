@@ -491,20 +491,37 @@ ignore:
     package:
       name: libsasl2-modules-db
       type: deb
-
-  # --- added by curator on 2026-10-19 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-109829
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-109869
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-87018
+    package:
+      name: node-undici
+      type: deb
+
+  # --- added by curator on 2026-10-21 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-109841
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-109924
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-109932
+    package:
+      name: node-undici
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-87029
     package:
       name: node-undici
       type: deb
