@@ -139,35 +139,11 @@ ignore:
     package:
       name: libcares2
       type: deb
-  - vulnerability: CVE-2026-8286
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8286
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-8924
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8924
-    package:
-      name: libcurl4t64
-      type: deb
   - vulnerability: CVE-2026-8926
     package:
       name: curl
       type: deb
   - vulnerability: CVE-2026-8926
-    package:
-      name: libcurl4t64
-      type: deb
-  - vulnerability: CVE-2026-8927
-    package:
-      name: curl
-      type: deb
-  - vulnerability: CVE-2026-8927
     package:
       name: libcurl4t64
       type: deb
@@ -503,24 +479,18 @@ ignore:
     package:
       name: node-undici
       type: deb
-
-  # --- added by curator on 2026-10-21 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-109841
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-109924
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-109932
     package:
       name: node-undici
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-87029
     package:
       name: node-undici
