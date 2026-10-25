@@ -495,3 +495,10 @@ ignore:
     package:
       name: node-undici
       type: deb
+
+  # --- added by curator on 2026-10-25 (UTC) ---
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-109383
+    package:
+      name: node-undici
+      type: deb
