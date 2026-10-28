@@ -50,16 +50,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends make g++ \
 #     joplin_apply_patch — surgical edits that never serialize the full body
 COPY joplin_server_mcp.py /app/joplin_server_mcp.py
 
+# Per-user entry point (ns joplin-mcp-user): the same tools, each person on
+# their own Joplin account through a Joplin "applications" credential, behind
+# Keycloak tokens. Not used by start.sh; that Deployment runs
+# `python /app/joplin_user_mcp.py` (not -I: it imports joplin_server_mcp from
+# /app). See README.
+COPY joplin_user_mcp.py /app/joplin_user_mcp.py
+
 # Install Python dependencies
 # mcp capped <2.0.0: upstream's 2.0.0 (released 2026-07-28) restructured the
 # package and dropped mcp.server.fastmcp, which joplin_server_mcp.py imports
 # directly. The floating >=1.0.0 bound let a scheduled CACHEBUST_DAY rebuild
 # pick up 2.0.0 and ship a joplin-mcp image whose child process cannot start.
+# PyJWT, cryptography, uvicorn and requests are for joplin_user_mcp.py.
 RUN pip install --no-cache-dir \
     "mcp>=1.0.0,<2.0.0" \
     "joppy>=1.0.0" \
     "pydantic>=2.0.0" \
-    "httpx>=0.24.0"
+    "httpx>=0.24.0" \
+    "PyJWT[crypto]>=2.10" \
+    "cryptography" \
+    "uvicorn" \
+    "requests"
 
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /app/start.sh
