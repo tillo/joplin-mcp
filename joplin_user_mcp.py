@@ -770,10 +770,10 @@ class AuthMiddleware:
             claims = await asyncio.to_thread(_validate_incoming, auth.split(" ", 1)[1].strip())
         except AuthError as e:
             log.warning("auth refused: %s", e)
-            return await self._unauthorized(send)
+            return await self._unauthorized(send, presented=True)
         except Exception as e:  # pragma: no cover - defensive
             log.warning("auth error: %s", type(e).__name__)
-            return await self._unauthorized(send)
+            return await self._unauthorized(send, presented=True)
 
         who = hashlib.sha256(claims["sub"].encode()).hexdigest()[:12]
         reset = _current.set((claims["sub"], claims["email"], who))
@@ -782,7 +782,12 @@ class AuthMiddleware:
         finally:
             _current.reset(reset)
 
-    async def _unauthorized(self, send: Send):
+    async def _unauthorized(self, send: Send, presented: bool = False):
+        # RFC 6750 3.1: error="invalid_token" only when a token was presented; a bare
+        # challenge (no token) carries no error code. The reason stays in the log.
+        challenge = f'Bearer resource_metadata="{METADATA_URL}"'
+        if presented:
+            challenge = f'Bearer error="invalid_token", resource_metadata="{METADATA_URL}"'
         body = json.dumps({"error": "invalid_token", "error_description": "Auth required"}).encode()
         await send(
             {
@@ -791,7 +796,7 @@ class AuthMiddleware:
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode()),
-                    (b"www-authenticate", f'Bearer resource_metadata="{METADATA_URL}"'.encode()),
+                    (b"www-authenticate", challenge.encode()),
                 ],
             }
         )

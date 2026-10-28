@@ -442,6 +442,7 @@ def test_http_without_a_token_is_401_with_resource_metadata(client):
     r = _rpc(client, None, "joplin_connect")
     assert r.status_code == 401
     assert "resource_metadata=" in r.headers["www-authenticate"]
+    assert "error=" not in r.headers["www-authenticate"]  # RFC 6750 3.1: no token, no error code
     assert client.get("/healthz").status_code == 200
     prm = client.get("/.well-known/oauth-protected-resource").json()
     assert prm["authorization_servers"] == [jum.KEYCLOAK_ISSUER]
@@ -449,6 +450,15 @@ def test_http_without_a_token_is_401_with_resource_metadata(client):
 
 def test_http_non_member_is_401(client, signed):
     assert _rpc(client, signed(groups=["ChatMail"]), "joplin_connect").status_code == 401
+
+
+def test_http_rejected_token_is_401_invalid_token(client, signed):
+    for token in ("not-a-jwt", signed(groups=["ChatMail"])):
+        r = _rpc(client, token, "joplin_connect")
+        assert r.status_code == 401
+        www = r.headers["www-authenticate"]
+        assert www.startswith("Bearer ") and 'error="invalid_token"' in www and "resource_metadata=" in www
+        assert r.json()["error"] == "invalid_token"
 
 
 def test_http_tool_calls_run_as_the_token_holder(client, signed, monkeypatch, caplog):
