@@ -229,8 +229,16 @@ def _get_store() -> Store:
 
 # ── Joplin, as one person ────────────────────────────────────────────────────
 
+# Joplin Server answers 404 "Invalid origin" to a request whose Host is not APP_BASE_URL's.
+# Reached through its in-cluster Service, the request still has to name the public host.
+JOPLIN_HEADERS = ({"Host": urlsplit(JOPLIN_PUBLIC_URL).netloc}
+                  if urlsplit(JOPLIN_URL).netloc != urlsplit(JOPLIN_PUBLIC_URL).netloc else {})
+
+
 def _new_http() -> requests.Session:
-    return requests.Session()
+    s = requests.Session()
+    s.headers.update(JOPLIN_HEADERS)
+    return s
 
 
 class UserApi(ServerApi):
@@ -426,7 +434,8 @@ def _user_api(sub: str, email: str) -> UserApi:
     pending = store.get("pending", sub)
     if pending and time.time() - pending[1] < PENDING_TTL:
         aid = pending[0]["aid"]
-        r = requests.get(f"{JOPLIN_URL}/api/application_auth/{aid}", timeout=HTTP_TIMEOUT)
+        r = requests.get(f"{JOPLIN_URL}/api/application_auth/{aid}", headers=JOPLIN_HEADERS,
+                         timeout=HTTP_TIMEOUT)
         if r.status_code == 403:
             raise _not_connected(aid, email, waiting=True)
         r.raise_for_status()
