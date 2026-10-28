@@ -23,7 +23,8 @@ Keycloak `sub`, together with the email it was issued for. Fail closed (D9): the
 account behind the credential must have the same email as the token, on every new session.
 
 Not offered here: deleting notes or notebooks (D3). The other tools are joplin_server_mcp's,
-unchanged, called with this person's own Joplin session.
+with their arguments flattened for small models (see HIDDEN), called with this person's own
+Joplin session.
 
 joppy note: joppy's ServerApi sends every request through ONE module-level requests.Session.
 Two people in one process would share its cookie jar, so UserApi never calls
@@ -47,7 +48,6 @@ Environment:
 
 import asyncio
 import datetime
-import functools
 import hashlib
 import hmac
 import inspect
@@ -60,6 +60,7 @@ import threading
 import time
 import uuid
 from contextvars import ContextVar
+from typing import Annotated, Optional
 from urllib.parse import urlencode, urlsplit
 
 import jwt
@@ -69,6 +70,7 @@ from joppy.server_api import LockError, ServerApi
 from jwt import PyJWKClient
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import ValidationError, WrapValidator
 from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -527,7 +529,7 @@ mcp.settings.streamable_http_path = "/mcp"
 
 # ── tools ────────────────────────────────────────────────────────────────────
 
-# joplin_server_mcp's tools offered here, unchanged. Not here: joplin_delete_note and
+# joplin_server_mcp's tools offered here. Not here: joplin_delete_note and
 # joplin_delete_folder (D3), joplin_ping (it reports the shared account).
 EXPOSED = (
     "joplin_create_note",
@@ -546,16 +548,131 @@ EXPOSED = (
 )
 
 
+# Flat arguments (infra-47nq.12). Upstream takes one `params: <Model>` argument, so its schema is
+# {"params": {"$ref": "#/$defs/<Model>"}} and Open WebUI hands that to the model unresolved: the
+# household model never saw the fields or the response_format enum, sent a value of its own and
+# got a validation error back. Here every field is a top-level argument, the schema carries no
+# $ref, and response_format is not offered (Chat reads Markdown).
+#
+# Still accepted, never advertised: response_format ("json" is what the guard probe parses;
+# anything else means Markdown), and the old nested {"params": {...}} shape, which older chats
+# still hold in their history. Empty or null optional fields count as not given.
+HIDDEN = ("response_format",)
+
+
+def _passthrough(value, _handler):
+    return value
+
+
+# FastMCP validates arguments against a model built from the signature, and JSON-decodes string
+# values of any argument not annotated exactly `str`. Raw keeps both away from what the model
+# sent (a body that happens to be a JSON text stays text); the upstream model validates instead.
+Raw = Annotated[str, WrapValidator(_passthrough)]
+
+
+def _is_text(field) -> bool:
+    return field.annotation in (str, Optional[str])
+
+
+def _flat_schema(model) -> dict:
+    full = model.model_json_schema()
+    defs = full.get("$defs", {})
+
+    def tidy(node):
+        if isinstance(node, list):
+            return [tidy(n) for n in node]
+        if not isinstance(node, dict):
+            return node
+        if "$ref" in node:
+            rest = {k: v for k, v in node.items() if k != "$ref"}
+            node = {**defs[node["$ref"].rsplit("/", 1)[-1]], **rest}
+        options = node.get("anyOf")
+        if isinstance(options, list) and len(options) == 2 and {"type": "null"} in options:
+            # Optional[X] = None: say X; leaving the field out is how to give no value.
+            rest = {k: v for k, v in node.items() if k != "anyOf" and not (k == "default" and v is None)}
+            node = {**next(o for o in options if o != {"type": "null"}), **rest}
+        # "title" is pydantic's label for a schema; under "properties" it is a field name.
+        return {k: ({p: tidy(s) for p, s in v.items()} if k == "properties" else tidy(v))
+                for k, v in node.items() if k != "title"}
+
+    props = {k: tidy(v) for k, v in full["properties"].items() if k not in HIDDEN}
+    return {"type": "object", "properties": props,
+            "required": [k for k in full.get("required", []) if k not in HIDDEN]}
+
+
+def _arguments(model, sent: dict) -> dict:
+    args = {}
+    legacy = sent.get("params")
+    if isinstance(legacy, str):
+        try:
+            legacy = json.loads(legacy)
+        except ValueError:
+            legacy = None
+    if isinstance(legacy, dict):
+        args.update(legacy)
+    args.update({k: v for k, v in sent.items() if k != "params" and v is not None})
+    out = {}
+    for name, field in model.model_fields.items():
+        value = args.get(name)
+        if value is None:
+            continue
+        if value == "" and not field.is_required() and (field.default is None or not _is_text(field)):
+            continue
+        if name == "response_format" and value not in ("markdown", "json"):
+            continue
+        if isinstance(value, str) and not _is_text(field):
+            try:
+                parsed = json.loads(value)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, (list, dict)):
+                value = parsed  # e.g. apply_patch operations sent as a JSON text
+        out[name] = value
+    return out
+
+
+def _invalid(tool: str, e: ValidationError) -> str:
+    # pydantic's msg never quotes the input, so this neither leaks a note nor needs one.
+    _, _, who = _identity()
+    log.info("tool=%s user=%s outcome=invalid_arguments ms=0", tool, who)
+    detail = "; ".join(f"{'.'.join(str(p) for p in err['loc']) or 'arguments'}: {err['msg']}"
+                       for err in e.errors())
+    return json.dumps({"error": "invalid_arguments", "detail": detail}, ensure_ascii=False)
+
+
+def _describe(doc: str) -> str:
+    """The upstream docstring without its "Args: params: <Model> ..." block."""
+    out, skipping = [], False
+    for line in (doc or "").splitlines():
+        if line.strip() == "Args:":
+            skipping = True
+            continue
+        if skipping and line[:1].isspace() and line.strip():
+            continue
+        skipping = False
+        out.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+
+
 def _expose(source) -> None:
     fn = source.fn
+    model = inspect.signature(fn).parameters["params"].annotation
 
-    @functools.wraps(fn)
-    async def tool(**kwargs) -> str:
-        return await _run(source.name, fn, kwargs)
+    async def tool(**sent) -> str:
+        try:
+            params = model.model_validate(_arguments(model, sent))
+        except ValidationError as e:
+            return _invalid(source.name, e)
+        return await _run(source.name, fn, {"params": params})
 
-    # FastMCP builds the input schema from the signature: keep the original one.
-    tool.__signature__ = inspect.signature(fn)
-    mcp.add_tool(tool, name=source.name, description=source.description, annotations=source.annotations)
+    tool.__name__ = source.name
+    tool.__signature__ = inspect.Signature(
+        [inspect.Parameter(n, inspect.Parameter.KEYWORD_ONLY, default=None, annotation=Raw)
+         for n in (*model.model_fields, "params")],
+        return_annotation=str)
+    mcp.add_tool(tool, name=source.name, description=_describe(source.description),
+                 annotations=source.annotations)
+    mcp._tool_manager.get_tool(source.name).parameters = _flat_schema(model)
 
 
 for _t in jsm.mcp._tool_manager.list_tools():

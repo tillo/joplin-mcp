@@ -120,12 +120,56 @@ def test_tool_set_has_no_deletes_and_no_shared_ping():
     assert "joplin_ping" not in names
 
 
-def test_exposed_tools_keep_the_original_schema_and_annotations():
-    ours, theirs = _tools(), {t.name: t for t in jsm.mcp._tool_manager.list_tools()}
+def _upstream():
+    return {t.name: t for t in jsm.mcp._tool_manager.list_tools()}
+
+
+def _model(name):
+    return _upstream()[name].fn.__annotations__["params"]
+
+
+def test_exposed_tools_keep_the_upstream_fields_and_annotations():
+    ours, theirs = _tools(), _upstream()
     for name in jum.EXPOSED:
-        assert ours[name].parameters == theirs[name].parameters, name
-        assert ours[name].description == theirs[name].description, name
+        model = _model(name)
+        schema = ours[name].parameters
+        assert set(schema["properties"]) == set(model.model_fields) - set(jum.HIDDEN), name
+        assert schema["required"] == [n for n, f in model.model_fields.items() if f.is_required()], name
         assert ours[name].annotations == theirs[name].annotations, name
+        assert ours[name].description.split("\n")[0] == theirs[name].description.split("\n")[0], name
+
+
+def test_exposed_schemas_are_flat_for_small_models():
+    # infra-47nq.12: Open WebUI passes inputSchema unresolved, so a $ref hides every field.
+    for name in jum.EXPOSED:
+        tool = _tools()[name]
+        text = json.dumps(tool.parameters)
+        assert "$ref" not in text and "$defs" not in text, name
+        assert "params" not in tool.parameters["properties"], name
+        assert "response_format" not in text, name
+        assert '"null"' not in text, name
+        assert "params:" not in tool.description and "Args:" not in tool.description, name
+    patch = _tools()["joplin_apply_patch"].parameters["properties"]["operations"]
+    assert patch["items"]["required"] == ["search"]
+
+
+def test_arguments_take_what_small_models_send():
+    ln, gn, up = _model("joplin_list_notes"), _model("joplin_get_note"), _model("joplin_update_note")
+    assert jum._arguments(ln, {"folder_id": "", "response_format": "text"}) == {}
+    assert jum._arguments(ln, {"folder_id": None, "response_format": "json"}) == {"response_format": "json"}
+    assert jum._arguments(gn, {"params": {"note_id": "n1", "response_format": "json"}}) == \
+        {"note_id": "n1", "response_format": "json"}
+    assert jum._arguments(gn, {"params": '{"note_id": "n1"}'}) == {"note_id": "n1"}
+    assert jum._arguments(gn, {"params": {"note_id": "old"}, "note_id": "new"}) == {"note_id": "new"}
+    assert jum._arguments(gn, {"note_id": "n1", "limit": 5}) == {"note_id": "n1"}
+    # An empty optional text field is "not given": it must not blank a title.
+    assert jum._arguments(up, {"note_id": "n1", "title": "", "body": "x", "force": ""}) == \
+        {"note_id": "n1", "body": "x"}
+    # A body that is a JSON text stays text; a list sent as JSON text becomes a list.
+    cn, ap = _model("joplin_create_note"), _model("joplin_apply_patch")
+    assert jum._arguments(cn, {"title": "t", "parent_id": "p", "body": '{"a": 1}'})["body"] == '{"a": 1}'
+    ops = jum._arguments(ap, {"note_id": "n1", "operations": '[{"search": "a", "replace": "b"}]'})["operations"]
+    assert ops == [{"search": "a", "replace": "b"}]
 
 
 # ── the per-call API seam ────────────────────────────────────────────────────
@@ -154,7 +198,7 @@ def test_a_real_old_tool_runs_on_the_callers_api(monkeypatch):
 
     apis = {A[0]: Api("folder of A"), B[0]: Api("folder of B")}
     monkeypatch.setattr(jum, "_user_api", lambda sub, email: apis[sub])
-    fn = _tools()["joplin_list_folders"].fn.__wrapped__
+    fn = _upstream()["joplin_list_folders"].fn
     params = jsm.ListFoldersInput(response_format="json")
     out_a = json.loads(jum._invoke(*A, fn, {"params": params}))
     out_b = json.loads(jum._invoke(*B, fn, {"params": params}))
@@ -425,3 +469,35 @@ def test_http_tool_calls_run_as_the_token_holder(client, signed, monkeypatch, ca
     logged = caplog.text
     assert "tool=joplin_connect" in logged
     assert A[1] not in logged and B[1] not in logged and A[0] not in logged
+
+
+def test_http_flat_legacy_and_bad_arguments(client, signed, monkeypatch, caplog):
+    got = []
+
+    async def fake_run(tool, fn, kwargs):
+        got.append((tool, kwargs["params"]))
+        return "ok"
+
+    monkeypatch.setattr(jum, "_run", fake_run)
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    tok = signed()
+
+    def call(name, arguments):
+        r = _rpc(client, tok, name, arguments)
+        assert r.status_code == 200, r.text
+        return r.json()["result"]
+
+    # What the household model sent (a made-up response_format) now lists the notes.
+    assert call("joplin_list_notes", {"response_format": "list"})["content"][0]["text"] == "ok"
+    assert call("joplin_get_note", {"note_id": "n1"})["content"][0]["text"] == "ok"
+    assert call("joplin_search_notes", {"params": {"query": "q", "response_format": "json"}})["content"][0]["text"] == "ok"
+    assert [(t, p.model_dump(mode="json")) for t, p in got] == [
+        ("joplin_list_notes", {"folder_id": None, "response_format": "markdown"}),
+        ("joplin_get_note", {"note_id": "n1", "response_format": "markdown"}),
+        ("joplin_search_notes", {"query": "q", "response_format": "json"}),
+    ]
+    bad = json.loads(call("joplin_get_note", {"note_id": None, "title": "secret title"})["content"][0]["text"])
+    assert bad == {"error": "invalid_arguments", "detail": "note_id: Field required"}
+    assert len(got) == 3
+    assert "tool=joplin_get_note" in caplog.text and "outcome=invalid_arguments" in caplog.text
+    assert "secret title" not in caplog.text
