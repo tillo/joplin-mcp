@@ -288,10 +288,18 @@ def _application_auth(monkeypatch, status, body=None):
 
     def get(url, **kw):
         polled.append(url)
+        assert kw.get("headers") == jum.JOPLIN_HEADERS
         return Resp(status, body or {"error": "Application not authorized yet."})
 
     monkeypatch.setattr(jum.requests, "get", get)
     return polled
+
+
+def test_in_cluster_requests_name_the_public_host():
+    # Joplin Server refuses any other Host with 404 "Invalid origin" (seen live, 3.7.3).
+    assert jum.JOPLIN_URL.startswith("http://joplin.joplin.svc.cluster.local")
+    assert jum.JOPLIN_HEADERS == {"Host": "notes.mdapi.ch"}
+    assert jum._new_http().headers["Host"] == "notes.mdapi.ch"
 
 
 def test_first_call_hands_out_a_confirm_link_then_waits(monkeypatch):
