@@ -495,10 +495,49 @@ ignore:
     package:
       name: node-undici
       type: deb
-
-  # --- added by curator on 2026-10-25 (UTC) ---
-  # Critical — upstream won't-fix
   - vulnerability: CVE-2026-109383
     package:
       name: node-undici
+      type: deb
+
+  # --- added by curator on 2026-10-31 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-86409
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-86409
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-86410
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-86410
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92386
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92386
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92387
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92387
+    package:
+      name: libcurl4t64
       type: deb
