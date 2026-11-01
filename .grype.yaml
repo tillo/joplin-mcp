@@ -499,45 +499,157 @@ ignore:
     package:
       name: node-undici
       type: deb
+  - vulnerability: CVE-2026-86409
+    package:
+      name: curl
+      type: deb
+  - vulnerability: CVE-2026-86409
+    package:
+      name: libcurl4t64
+      type: deb
+  - vulnerability: CVE-2026-86410
+    package:
+      name: curl
+      type: deb
+  - vulnerability: CVE-2026-86410
+    package:
+      name: libcurl4t64
+      type: deb
+  - vulnerability: CVE-2026-92386
+    package:
+      name: curl
+      type: deb
+  - vulnerability: CVE-2026-92386
+    package:
+      name: libcurl4t64
+      type: deb
+  - vulnerability: CVE-2026-92387
+    package:
+      name: curl
+      type: deb
+  - vulnerability: CVE-2026-92387
+    package:
+      name: libcurl4t64
+      type: deb
 
-  # --- added by curator on 2026-10-31 (UTC) ---
+  # --- added by curator on 2026-11-01 (UTC) ---
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-86409
+  - vulnerability: CVE-2026-107928
     package:
       name: curl
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-86409
+  - vulnerability: CVE-2026-107928
     package:
       name: libcurl4t64
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-86410
+  - vulnerability: CVE-2026-107929
     package:
       name: curl
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-86410
+  - vulnerability: CVE-2026-107929
+    package:
+      name: libcurl4t64
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-86414
+    package:
+      name: curl
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-86414
     package:
       name: libcurl4t64
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-92386
+  - vulnerability: CVE-2026-87862
     package:
       name: curl
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-92386
+  - vulnerability: CVE-2026-87862
     package:
       name: libcurl4t64
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-92387
+  - vulnerability: CVE-2026-87863
     package:
       name: curl
       type: deb
   # High — upstream won't-fix
-  - vulnerability: CVE-2026-92387
+  - vulnerability: CVE-2026-87863
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-87864
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-87864
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-87865
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-87865
+    package:
+      name: libcurl4t64
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-92388
+    package:
+      name: curl
+      type: deb
+  # Critical — upstream won't-fix
+  - vulnerability: CVE-2026-92388
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92389
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92389
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92390
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92390
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92391
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-92391
+    package:
+      name: libcurl4t64
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-94266
+    package:
+      name: curl
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-94266
     package:
       name: libcurl4t64
       type: deb
