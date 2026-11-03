@@ -734,7 +734,6 @@ def _disconnect(sub: str, email: str) -> dict:
         store = _get_store()
         found = store.get("creds", sub)
         store.delete("pending", sub)
-        revoked = False
         if found:
             with _registry_lock:
                 hit = _apis.get(sub)
