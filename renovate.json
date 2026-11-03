@@ -17,6 +17,13 @@
   ],
   "packageRules": [
     {
+      "description": "js-yaml STAYS ON 4.x. The `overrides` pin exists only to force a CVE-fixed js-yaml under @joplin/lib (prototype pollution, fixed in 4.1.1). js-yaml 5 changes what @joplin/lib's front-matter code relies on: load('') throws instead of returning undefined, a bare '---' loads as \"\" instead of null, an empty string dumps as a bare key that reads back as null, and 'y' loses its quotes. Lift this cap only when @joplin/lib itself depends on js-yaml 5 (Renovate MR !91, closed).",
+      "matchPackageNames": [
+        "js-yaml"
+      ],
+      "allowedVersions": "<5"
+    },
+    {
       "description": "GRADUATED — minor+patch (promoted by the graduation tick / Windmill f/desk/renovate_graduate). The baseline here is MR-only, so this list is the whole minor+patch automerge. Must sit above GRADUATED — major. `__none__` is a sentinel, not a package: it keeps an emptied list inert instead of matching everything.",
       "matchUpdateTypes": [
         "minor",
