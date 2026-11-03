@@ -1071,7 +1071,7 @@ def _section_end_line(body: str, heading_line_idx: int, level: int) -> int:
     A section ends at the next Markdown heading of equal-or-higher level (i.e.
     fewer-or-equal '#' characters), or at end-of-file.
     """
-    lines = body.splitlines(keepends=False)
+    lines = body.splitlines()
     for i in range(heading_line_idx + 1, len(lines)):
         line = lines[i]
         # Match any heading of level 1..`level`
@@ -1093,8 +1093,9 @@ def _with_section_appended(lines, head_idx, end_idx, content, position):
             ins += 1
         return lines[:ins] + insert_block + [""] + lines[ins:]
     # bottom: trim trailing blank lines inside the section, then append, then re-pad.
+    # The heading line itself is never blank, so the trim stops at it at the latest.
     e = end_idx
-    while e > head_idx + 1 and lines[e - 1].strip() == "":
+    while lines[e - 1].strip() == "":
         e -= 1
     return lines[:e] + [""] + insert_block + [""] + lines[end_idx:]
 
