@@ -727,3 +727,140 @@ def test_an_unreachable_joplin_is_an_internal_error(client, signed, monkeypatch,
         assert json.loads(r.json()["result"]["content"][0]["text"]) == {
             "error": "internal_error", "detail": "ConnectionError"}
     assert caplog.text.count("outcome=error_ConnectionError") == 2
+
+
+# ── clocks, log lines and text encoding ──────────────────────────────────────
+
+def _freeze(monkeypatch, wall=None, mono=None):
+    """Replace the clock joplin_user_mcp reads, and only its own: other modules keep time."""
+    stub = types.SimpleNamespace(**{n: getattr(time, n) for n in dir(time) if not n.startswith("_")})
+    if wall is not None:
+        stub.time = wall
+    if mono is not None:
+        stub.monotonic = mono
+    monkeypatch.setattr(jum, "time", stub)
+
+
+@contextlib.contextmanager
+def _as(sub, email):
+    token = jum._current.set((sub, email, "who"))
+    try:
+        yield
+    finally:
+        jum._current.reset(token)
+
+
+def _tool_text(name, arguments=None):
+    import asyncio
+
+    return asyncio.run(jum.mcp.call_tool(name, arguments or {}))[0][0].text
+
+
+def test_a_new_account_gets_the_info_json_joppy_writes(monkeypatch, no_shared_session):
+    http = FakeHttp()
+    real_get = http.get
+    missing = ("info.json", "version.txt")
+    http.get = lambda url, **kw: Resp(404, {"error": "nf"}) if any(m in url for m in missing) else real_get(url, **kw)
+    written = []
+    http.put = lambda url, **kw: written.append(kw.get("json")) or Resp(200, {})
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    _freeze(monkeypatch, wall=lambda: 1_800_000_000.25)
+    jum.UserApi("app", "pw")
+    now = 1_800_000_000_250
+    assert written == [{"version": 3, "e2ee": {"value": False, "updatedTime": now},
+                        "activeMasterKeyId": {"value": False, "updatedTime": now},
+                        "masterKeys": [], "ppk": {}, "appMinVersion": "3.0.0"}]
+
+
+def test_a_session_ends_at_exactly_its_max_age(monkeypatch, no_shared_session):
+    made = []
+    monkeypatch.setattr(jum, "_new_http", lambda: made.append(FakeHttp(email=A[1])) or made[-1])
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    clock = [1000.0]
+    _freeze(monkeypatch, mono=lambda: clock[0])
+    first = jum._user_api(*A)
+    clock[0] = 1000.0 + jum.SESSION_MAX_AGE - 1
+    assert jum._user_api(*A) is first
+    clock[0] = 1000.0 + jum.SESSION_MAX_AGE
+    assert jum._user_api(*A) is not first and len(made) == 2
+
+
+def test_a_link_expires_at_exactly_its_ttl(monkeypatch):
+    polled = _application_auth(monkeypatch, 403)
+    clock = [5000.0]
+    _freeze(monkeypatch, wall=lambda: clock[0])
+    with pytest.raises(jum.UserFacing) as first:
+        jum._user_api(*A)
+    clock[0] = 5000.0 + jum.PENDING_TTL - 1
+    with pytest.raises(jum.UserFacing) as waiting:
+        jum._user_api(*A)
+    assert len(polled) == 1 and waiting.value.extra["connect_url"] == first.value.extra["connect_url"]
+    clock[0] = 5000.0 + jum.PENDING_TTL
+    with pytest.raises(jum.UserFacing) as fresh:
+        jum._user_api(*A)
+    assert len(polled) == 1 and fresh.value.extra["connect_url"] != first.value.extra["connect_url"]
+
+
+def test_a_lock_is_kept_until_its_refresh_interval_has_passed(own_joplin, no_shared_session, monkeypatch):
+    import datetime
+
+    fixed = datetime.datetime.now(datetime.timezone.utc)
+
+    class Frozen(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    monkeypatch.setattr(jum, "datetime", types.SimpleNamespace(
+        datetime=Frozen, timezone=datetime.timezone, timedelta=datetime.timedelta))
+    own_joplin.apps["app0"] = "app-password"
+    nid = own_joplin.add_note(1, "Plan", "x")
+    api = jum.UserApi("app0", "app-password")
+    api.current_sync_lock = api._add_lock()
+    api.current_sync_lock.updatedTime = fixed.replace(tzinfo=None) - api.lock_auto_refresh_interval
+    posts = own_joplin.requests.count(("POST", "/api/locks"))
+    api.get(f"/api/items/root:/{nid}.md:/content")
+    assert own_joplin.requests.count(("POST", "/api/locks")) == posts  # due, not yet past due
+
+
+def test_the_log_line_carries_the_call_time(monkeypatch, caplog):
+    import asyncio
+
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    monkeypatch.setattr(jum, "_user_api", lambda sub, email: object())
+    ticks = iter([10.0, 10.25, 20.0, 20.5])
+    _freeze(monkeypatch, mono=lambda: next(ticks))
+    with _as(*A):
+        _tool_text("joplin_connect")
+        assert asyncio.run(jum._run("joplin_probe", lambda: "done", {})) == "done"
+    assert "tool=joplin_connect user=who outcome=ok ms=250" in caplog.text
+    assert "tool=joplin_probe user=who outcome=ok ms=500" in caplog.text
+
+
+def test_non_ascii_text_goes_out_as_written(monkeypatch):
+    zoe = ("sub-z", "zoë@example.test")
+    _application_auth(monkeypatch, 403)
+    with _as(*zoe):
+        texts = [_tool_text("joplin_list_notes"), _tool_text("joplin_connect")]  # new link, then waiting
+    for text in texts:
+        assert json.loads(text)["error"] == "joplin_not_connected"
+        assert "as zoë@example.test if it asks" in text and "\\u" not in text
+    monkeypatch.setattr(jum, "_user_api", lambda sub, email: object())
+    with _as(*zoe):
+        assert '"account": "zoë@example.test"' in _tool_text("joplin_connect")
+        bad = _tool_text("joplin_apply_patch", {"note_id": "n1", "operations": [{"search": "a", "rëplace": "b"}]})
+    assert bad == '{"error": "invalid_arguments", "detail": "operations.0.rëplace: Extra inputs are not permitted"}'
+
+
+def test_the_allowed_hosts_follow_the_resource_url(monkeypatch):
+    monkeypatch.setattr(jum, "RESOURCE_URL", "https://notes-mcp.example.test/mcp")
+    settings = jum._transport_security()
+    assert settings.enable_dns_rebinding_protection is True
+    assert settings.allowed_hosts == ["127.0.0.1:*", "[::1]:*", "localhost:*",
+                                      "notes-mcp.example.test", "notes-mcp.example.test:*"]
+    assert settings.allowed_origins == []
+
+
+def test_a_description_keeps_everything_outside_the_args_block():
+    doc = "  Lead line\n\nArgs:\n    params: X\n        more\nAfter."
+    assert jum._describe(doc) == "Lead line\n\nAfter."
