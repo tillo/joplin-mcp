@@ -1,0 +1,1600 @@
+{
+ "server": {
+  "joplin_add_tag_to_note": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Add Tag to Note"
+   },
+   "description": "Add a tag to a note.\n\nArgs:\n    params: AddTagToNoteInput with tag_id and note_id\n\nReturns:\n    JSON confirmation or error\n",
+   "inputSchema": {
+    "$defs": {
+     "AddTagToNoteInput": {
+      "additionalProperties": false,
+      "properties": {
+       "note_id": {
+        "description": "The note ID to tag",
+        "title": "Note Id",
+        "type": "string"
+       },
+       "tag_id": {
+        "description": "The tag ID",
+        "title": "Tag Id",
+        "type": "string"
+       }
+      },
+      "required": [
+       "tag_id",
+       "note_id"
+      ],
+      "title": "AddTagToNoteInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/AddTagToNoteInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_add_tag_to_noteArguments",
+    "type": "object"
+   },
+   "name": "joplin_add_tag_to_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_add_tag_to_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_append_to_section": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Append content to a section of a Joplin note"
+   },
+   "description": "Append text to a named section of a note without rewriting the rest.\n\nLocates the unique '#'*level + section_heading line in the current body,\ninserts `content` at the top or bottom of that section (delimited by the\nnext equal-or-higher heading), and writes the result back via modify_note.\n\nReturns:\n    JSON with success / error envelope.\n",
+   "inputSchema": {
+    "$defs": {
+     "AppendToSectionInput": {
+      "additionalProperties": false,
+      "properties": {
+       "content": {
+        "description": "Text to insert into the section. A trailing newline is added if missing.",
+        "minLength": 1,
+        "title": "Content",
+        "type": "string"
+       },
+       "heading_level": {
+        "default": 2,
+        "description": "Markdown heading level to match (1-6). Default 2 (## Heading).",
+        "maximum": 6,
+        "minimum": 1,
+        "title": "Heading Level",
+        "type": "integer"
+       },
+       "note_id": {
+        "description": "The ID of the note to update",
+        "title": "Note Id",
+        "type": "string"
+       },
+       "position": {
+        "default": "bottom",
+        "description": "'top' inserts immediately after the heading line, 'bottom' inserts at the end of the section.",
+        "pattern": "^(top|bottom)$",
+        "title": "Position",
+        "type": "string"
+       },
+       "section_heading": {
+        "description": "Heading text to locate, e.g. 'Done (recent)'. Matched against a Markdown heading line of the given level.",
+        "minLength": 1,
+        "title": "Section Heading",
+        "type": "string"
+       }
+      },
+      "required": [
+       "note_id",
+       "section_heading",
+       "content"
+      ],
+      "title": "AppendToSectionInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/AppendToSectionInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_append_to_sectionArguments",
+    "type": "object"
+   },
+   "name": "joplin_append_to_section",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_append_to_sectionOutput",
+    "type": "object"
+   }
+  },
+  "joplin_apply_patch": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Apply a list of unique search/replace operations to a Joplin note"
+   },
+   "description": "Apply ordered search/replace operations atomically.\n\nEach operation's `search` string must occur exactly once in the body at the\ntime it is applied. Operations are applied in order, so an earlier\nreplacement can create context for a later search. If any operation fails\n(search_not_found or search_not_unique), no write occurs.\n\nReturns:\n    JSON with success / error envelope.\n",
+   "inputSchema": {
+    "$defs": {
+     "ApplyPatchInput": {
+      "additionalProperties": false,
+      "properties": {
+       "note_id": {
+        "description": "The ID of the note to update",
+        "title": "Note Id",
+        "type": "string"
+       },
+       "operations": {
+        "description": "Ordered list of search/replace operations. Each search string must occur exactly once in the current body. All operations are validated before any write; if any fails, no write occurs.",
+        "items": {
+         "$ref": "#/$defs/PatchOperation"
+        },
+        "minItems": 1,
+        "title": "Operations",
+        "type": "array"
+       }
+      },
+      "required": [
+       "note_id",
+       "operations"
+      ],
+      "title": "ApplyPatchInput",
+      "type": "object"
+     },
+     "PatchOperation": {
+      "additionalProperties": false,
+      "properties": {
+       "replace": {
+        "default": "",
+        "description": "Replacement text. Empty string deletes the search match.",
+        "title": "Replace",
+        "type": "string"
+       },
+       "search": {
+        "description": "Exact substring to find in the note body. Must occur exactly once.",
+        "minLength": 1,
+        "title": "Search",
+        "type": "string"
+       }
+      },
+      "required": [
+       "search"
+      ],
+      "title": "PatchOperation",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/ApplyPatchInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_apply_patchArguments",
+    "type": "object"
+   },
+   "name": "joplin_apply_patch",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_apply_patchOutput",
+    "type": "object"
+   }
+  },
+  "joplin_create_folder": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Create a Joplin Notebook"
+   },
+   "description": "Create a new notebook.\n\nArgs:\n    params: CreateFolderInput with title and optional parent_id\n\nReturns:\n    JSON with created notebook details\n",
+   "inputSchema": {
+    "$defs": {
+     "CreateFolderInput": {
+      "additionalProperties": false,
+      "properties": {
+       "parent_id": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Parent notebook ID",
+        "title": "Parent Id"
+       },
+       "title": {
+        "description": "The notebook title",
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+       }
+      },
+      "required": [
+       "title"
+      ],
+      "title": "CreateFolderInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/CreateFolderInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_create_folderArguments",
+    "type": "object"
+   },
+   "name": "joplin_create_folder",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_create_folderOutput",
+    "type": "object"
+   }
+  },
+  "joplin_create_note": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Create a Joplin Note"
+   },
+   "description": "Create a new note in Joplin Server.\n\nArgs:\n    params: CreateNoteInput with title, body, parent_id (required), is_todo\n\nReturns:\n    JSON with created note ID and details\n",
+   "inputSchema": {
+    "$defs": {
+     "CreateNoteInput": {
+      "additionalProperties": false,
+      "properties": {
+       "body": {
+        "default": "",
+        "description": "The note body in Markdown format",
+        "title": "Body",
+        "type": "string"
+       },
+       "is_todo": {
+        "anyOf": [
+         {
+          "type": "boolean"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": false,
+        "description": "Whether this note is a todo item",
+        "title": "Is Todo"
+       },
+       "parent_id": {
+        "description": "ID of the notebook to create the note in (required)",
+        "title": "Parent Id",
+        "type": "string"
+       },
+       "title": {
+        "description": "The note title",
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+       }
+      },
+      "required": [
+       "title",
+       "parent_id"
+      ],
+      "title": "CreateNoteInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/CreateNoteInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_create_noteArguments",
+    "type": "object"
+   },
+   "name": "joplin_create_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_create_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_create_tag": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Create a Joplin Tag"
+   },
+   "description": "Create a new tag.\n\nArgs:\n    params: CreateTagInput with title\n\nReturns:\n    JSON with created tag details\n",
+   "inputSchema": {
+    "$defs": {
+     "CreateTagInput": {
+      "additionalProperties": false,
+      "properties": {
+       "title": {
+        "description": "The tag name",
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+       }
+      },
+      "required": [
+       "title"
+      ],
+      "title": "CreateTagInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/CreateTagInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_create_tagArguments",
+    "type": "object"
+   },
+   "name": "joplin_create_tag",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_create_tagOutput",
+    "type": "object"
+   }
+  },
+  "joplin_delete_folder": {
+   "annotations": {
+    "destructiveHint": true,
+    "readOnlyHint": false,
+    "title": "Delete a Joplin Notebook"
+   },
+   "description": "Delete a notebook.\n\nArgs:\n    params: DeleteFolderInput with folder_id\n\nReturns:\n    JSON confirmation or error\n",
+   "inputSchema": {
+    "$defs": {
+     "DeleteFolderInput": {
+      "additionalProperties": false,
+      "properties": {
+       "folder_id": {
+        "description": "The ID of the notebook to delete",
+        "title": "Folder Id",
+        "type": "string"
+       }
+      },
+      "required": [
+       "folder_id"
+      ],
+      "title": "DeleteFolderInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/DeleteFolderInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_delete_folderArguments",
+    "type": "object"
+   },
+   "name": "joplin_delete_folder",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_delete_folderOutput",
+    "type": "object"
+   }
+  },
+  "joplin_delete_note": {
+   "annotations": {
+    "destructiveHint": true,
+    "readOnlyHint": false,
+    "title": "Delete a Joplin Note"
+   },
+   "description": "Delete a note from Joplin Server.\n\nArgs:\n    params: DeleteNoteInput with note_id\n\nReturns:\n    JSON confirmation or error\n",
+   "inputSchema": {
+    "$defs": {
+     "DeleteNoteInput": {
+      "additionalProperties": false,
+      "properties": {
+       "note_id": {
+        "description": "The ID of the note to delete",
+        "title": "Note Id",
+        "type": "string"
+       }
+      },
+      "required": [
+       "note_id"
+      ],
+      "title": "DeleteNoteInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/DeleteNoteInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_delete_noteArguments",
+    "type": "object"
+   },
+   "name": "joplin_delete_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_delete_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_get_note": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "Get a Joplin Note"
+   },
+   "description": "Retrieve a specific note by ID.\n\nArgs:\n    params: GetNoteInput with note_id and response_format\n\nReturns:\n    Note content in requested format\n",
+   "inputSchema": {
+    "$defs": {
+     "GetNoteInput": {
+      "additionalProperties": false,
+      "properties": {
+       "note_id": {
+        "description": "The ID of the note to retrieve",
+        "title": "Note Id",
+        "type": "string"
+       },
+       "response_format": {
+        "$ref": "#/$defs/ResponseFormat",
+        "default": "markdown"
+       }
+      },
+      "required": [
+       "note_id"
+      ],
+      "title": "GetNoteInput",
+      "type": "object"
+     },
+     "ResponseFormat": {
+      "enum": [
+       "markdown",
+       "json"
+      ],
+      "title": "ResponseFormat",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/GetNoteInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_get_noteArguments",
+    "type": "object"
+   },
+   "name": "joplin_get_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_get_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_list_folders": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "List Joplin Notebooks"
+   },
+   "description": "List all notebooks.\n\nArgs:\n    params: ListFoldersInput with response_format\n\nReturns:\n    List of notebooks in requested format\n",
+   "inputSchema": {
+    "$defs": {
+     "ListFoldersInput": {
+      "additionalProperties": false,
+      "properties": {
+       "response_format": {
+        "$ref": "#/$defs/ResponseFormat",
+        "default": "markdown"
+       }
+      },
+      "title": "ListFoldersInput",
+      "type": "object"
+     },
+     "ResponseFormat": {
+      "enum": [
+       "markdown",
+       "json"
+      ],
+      "title": "ResponseFormat",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/ListFoldersInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_list_foldersArguments",
+    "type": "object"
+   },
+   "name": "joplin_list_folders",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_list_foldersOutput",
+    "type": "object"
+   }
+  },
+  "joplin_list_notes": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "List Joplin Notes"
+   },
+   "description": "List all notes, optionally filtered by notebook.\n\nArgs:\n    params: ListNotesInput with optional folder_id and response_format\n\nReturns:\n    List of notes in requested format\n",
+   "inputSchema": {
+    "$defs": {
+     "ListNotesInput": {
+      "additionalProperties": false,
+      "properties": {
+       "folder_id": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Filter notes by notebook ID",
+        "title": "Folder Id"
+       },
+       "response_format": {
+        "$ref": "#/$defs/ResponseFormat",
+        "default": "markdown"
+       }
+      },
+      "title": "ListNotesInput",
+      "type": "object"
+     },
+     "ResponseFormat": {
+      "enum": [
+       "markdown",
+       "json"
+      ],
+      "title": "ResponseFormat",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/ListNotesInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_list_notesArguments",
+    "type": "object"
+   },
+   "name": "joplin_list_notes",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_list_notesOutput",
+    "type": "object"
+   }
+  },
+  "joplin_list_tags": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "List Joplin Tags"
+   },
+   "description": "List all tags.\n\nArgs:\n    params: ListTagsInput with response_format\n\nReturns:\n    List of tags in requested format\n",
+   "inputSchema": {
+    "$defs": {
+     "ListTagsInput": {
+      "additionalProperties": false,
+      "properties": {
+       "response_format": {
+        "$ref": "#/$defs/ResponseFormat",
+        "default": "markdown"
+       }
+      },
+      "title": "ListTagsInput",
+      "type": "object"
+     },
+     "ResponseFormat": {
+      "enum": [
+       "markdown",
+       "json"
+      ],
+      "title": "ResponseFormat",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/ListTagsInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_list_tagsArguments",
+    "type": "object"
+   },
+   "name": "joplin_list_tags",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_list_tagsOutput",
+    "type": "object"
+   }
+  },
+  "joplin_ping": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "Check Joplin Server Connection"
+   },
+   "description": "Check if Joplin Server is accessible.\n\nReturns:\n    JSON with connection status\n",
+   "inputSchema": {
+    "properties": {},
+    "title": "joplin_pingArguments",
+    "type": "object"
+   },
+   "name": "joplin_ping",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_pingOutput",
+    "type": "object"
+   }
+  },
+  "joplin_replace_section": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Replace the body of a named section of a Joplin note"
+   },
+   "description": "Replace everything between a heading and the next equal-or-higher heading.\n\nThe heading line itself is preserved. Sibling sections are not touched.\n\nReturns:\n    JSON with success / error envelope.\n",
+   "inputSchema": {
+    "$defs": {
+     "ReplaceSectionInput": {
+      "additionalProperties": false,
+      "properties": {
+       "heading_level": {
+        "default": 2,
+        "maximum": 6,
+        "minimum": 1,
+        "title": "Heading Level",
+        "type": "integer"
+       },
+       "new_content": {
+        "description": "Replacement body for the section. The heading line itself is preserved.",
+        "title": "New Content",
+        "type": "string"
+       },
+       "note_id": {
+        "description": "The ID of the note to update",
+        "title": "Note Id",
+        "type": "string"
+       },
+       "section_heading": {
+        "description": "Heading text to locate",
+        "minLength": 1,
+        "title": "Section Heading",
+        "type": "string"
+       }
+      },
+      "required": [
+       "note_id",
+       "section_heading",
+       "new_content"
+      ],
+      "title": "ReplaceSectionInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/ReplaceSectionInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_replace_sectionArguments",
+    "type": "object"
+   },
+   "name": "joplin_replace_section",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_replace_sectionOutput",
+    "type": "object"
+   }
+  },
+  "joplin_search_notes": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "Search Joplin Notes"
+   },
+   "description": "Search notes by title or body content.\n\nNote: This performs client-side filtering as Joplin Server doesn't have\na native search API.\n\nArgs:\n    params: SearchNotesInput with query and response_format\n\nReturns:\n    Matching notes in requested format\n",
+   "inputSchema": {
+    "$defs": {
+     "ResponseFormat": {
+      "enum": [
+       "markdown",
+       "json"
+      ],
+      "title": "ResponseFormat",
+      "type": "string"
+     },
+     "SearchNotesInput": {
+      "additionalProperties": false,
+      "properties": {
+       "query": {
+        "description": "Search query (searches in title and body)",
+        "minLength": 1,
+        "title": "Query",
+        "type": "string"
+       },
+       "response_format": {
+        "$ref": "#/$defs/ResponseFormat",
+        "default": "markdown"
+       }
+      },
+      "required": [
+       "query"
+      ],
+      "title": "SearchNotesInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/SearchNotesInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_search_notesArguments",
+    "type": "object"
+   },
+   "name": "joplin_search_notes",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_search_notesOutput",
+    "type": "object"
+   }
+  },
+  "joplin_update_note": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Update a Joplin Note"
+   },
+   "description": "Update an existing note.\n\nArgs:\n    params: UpdateNoteInput with note_id and fields to update\n\nReturns:\n    JSON confirmation or error\n",
+   "inputSchema": {
+    "$defs": {
+     "UpdateNoteInput": {
+      "additionalProperties": false,
+      "properties": {
+       "body": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "New body content in Markdown",
+        "title": "Body"
+       },
+       "force": {
+        "anyOf": [
+         {
+          "type": "boolean"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": false,
+        "description": "Bypass the destructive-replacement safety guards (shrink-guard + unexpanded-shell-substitution detector). Required for legitimate migrations / drastic restructures that genuinely shrink the body. Default false.",
+        "title": "Force"
+       },
+       "note_id": {
+        "description": "The ID of the note to update",
+        "title": "Note Id",
+        "type": "string"
+       },
+       "parent_id": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Move note to this notebook ID",
+        "title": "Parent Id"
+       },
+       "title": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "New title for the note",
+        "title": "Title"
+       }
+      },
+      "required": [
+       "note_id"
+      ],
+      "title": "UpdateNoteInput",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "params": {
+      "$ref": "#/$defs/UpdateNoteInput"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "joplin_update_noteArguments",
+    "type": "object"
+   },
+   "name": "joplin_update_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_update_noteOutput",
+    "type": "object"
+   }
+  }
+ },
+ "user": {
+  "joplin_add_tag_to_note": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Add Tag to Note"
+   },
+   "description": "Add a tag to a note.\n\nReturns:\n    JSON confirmation or error",
+   "inputSchema": {
+    "properties": {
+     "note_id": {
+      "description": "The note ID to tag",
+      "type": "string"
+     },
+     "tag_id": {
+      "description": "The tag ID",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tag_id",
+     "note_id"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_add_tag_to_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_add_tag_to_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_append_to_section": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Append content to a section of a Joplin note"
+   },
+   "description": "Append text to a named section of a note without rewriting the rest.\n\nLocates the unique '#'*level + section_heading line in the current body,\ninserts `content` at the top or bottom of that section (delimited by the\nnext equal-or-higher heading), and writes the result back via modify_note.\n\nReturns:\n    JSON with success / error envelope.",
+   "inputSchema": {
+    "properties": {
+     "content": {
+      "description": "Text to insert into the section. A trailing newline is added if missing.",
+      "minLength": 1,
+      "type": "string"
+     },
+     "heading_level": {
+      "default": 2,
+      "description": "Markdown heading level to match (1-6). Default 2 (## Heading).",
+      "maximum": 6,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "note_id": {
+      "description": "The ID of the note to update",
+      "type": "string"
+     },
+     "position": {
+      "default": "bottom",
+      "description": "'top' inserts immediately after the heading line, 'bottom' inserts at the end of the section.",
+      "pattern": "^(top|bottom)$",
+      "type": "string"
+     },
+     "section_heading": {
+      "description": "Heading text to locate, e.g. 'Done (recent)'. Matched against a Markdown heading line of the given level.",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "note_id",
+     "section_heading",
+     "content"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_append_to_section",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_append_to_sectionOutput",
+    "type": "object"
+   }
+  },
+  "joplin_apply_patch": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Apply a list of unique search/replace operations to a Joplin note"
+   },
+   "description": "Apply ordered search/replace operations atomically.\n\nEach operation's `search` string must occur exactly once in the body at the\ntime it is applied. Operations are applied in order, so an earlier\nreplacement can create context for a later search. If any operation fails\n(search_not_found or search_not_unique), no write occurs.\n\nReturns:\n    JSON with success / error envelope.",
+   "inputSchema": {
+    "properties": {
+     "note_id": {
+      "description": "The ID of the note to update",
+      "type": "string"
+     },
+     "operations": {
+      "description": "Ordered list of search/replace operations. Each search string must occur exactly once in the current body. All operations are validated before any write; if any fails, no write occurs.",
+      "items": {
+       "additionalProperties": false,
+       "properties": {
+        "replace": {
+         "default": "",
+         "description": "Replacement text. Empty string deletes the search match.",
+         "type": "string"
+        },
+        "search": {
+         "description": "Exact substring to find in the note body. Must occur exactly once.",
+         "minLength": 1,
+         "type": "string"
+        }
+       },
+       "required": [
+        "search"
+       ],
+       "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "note_id",
+     "operations"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_apply_patch",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_apply_patchOutput",
+    "type": "object"
+   }
+  },
+  "joplin_connect": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "Connect my Joplin notes"
+   },
+   "description": "Connect Chat to my own Joplin notes (notes.mdapi.ch), or check that it is connected.\nWhen it is not connected yet, this returns a link: give it to me, I open it, sign in to\nJoplin with my own account and press Authorise, then call this again. The other joplin_*\ntools return the same link while the connection is missing.",
+   "inputSchema": {
+    "properties": {},
+    "title": "joplin_connectArguments",
+    "type": "object"
+   },
+   "name": "joplin_connect",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_connectOutput",
+    "type": "object"
+   }
+  },
+  "joplin_create_folder": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Create a Joplin Notebook"
+   },
+   "description": "Create a new notebook.\n\nReturns:\n    JSON with created notebook details",
+   "inputSchema": {
+    "properties": {
+     "parent_id": {
+      "description": "Parent notebook ID",
+      "type": "string"
+     },
+     "title": {
+      "description": "The notebook title",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_create_folder",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_create_folderOutput",
+    "type": "object"
+   }
+  },
+  "joplin_create_note": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Create a Joplin Note"
+   },
+   "description": "Create a new note in Joplin Server.\n\nReturns:\n    JSON with created note ID and details",
+   "inputSchema": {
+    "properties": {
+     "body": {
+      "default": "",
+      "description": "The note body in Markdown format",
+      "type": "string"
+     },
+     "is_todo": {
+      "default": false,
+      "description": "Whether this note is a todo item",
+      "type": "boolean"
+     },
+     "parent_id": {
+      "description": "ID of the notebook to create the note in (required)",
+      "type": "string"
+     },
+     "title": {
+      "description": "The note title",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "parent_id"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_create_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_create_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_create_tag": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Create a Joplin Tag"
+   },
+   "description": "Create a new tag.\n\nReturns:\n    JSON with created tag details",
+   "inputSchema": {
+    "properties": {
+     "title": {
+      "description": "The tag name",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_create_tag",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_create_tagOutput",
+    "type": "object"
+   }
+  },
+  "joplin_disconnect": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Disconnect my Joplin notes"
+   },
+   "description": "Disconnect Chat from my Joplin notes: Chat forgets its credential and removes it in\nJoplin (the 'vchat.mdapi.ch' entry on notes.mdapi.ch/applications). My notes are not\ntouched. Use it only when I ask to disconnect.",
+   "inputSchema": {
+    "properties": {},
+    "title": "joplin_disconnectArguments",
+    "type": "object"
+   },
+   "name": "joplin_disconnect",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_disconnectOutput",
+    "type": "object"
+   }
+  },
+  "joplin_get_note": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "Get a Joplin Note"
+   },
+   "description": "Retrieve a specific note by ID.\n\nReturns:\n    Note content in requested format",
+   "inputSchema": {
+    "properties": {
+     "note_id": {
+      "description": "The ID of the note to retrieve",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note_id"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_get_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_get_noteOutput",
+    "type": "object"
+   }
+  },
+  "joplin_list_folders": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "List Joplin Notebooks"
+   },
+   "description": "List all notebooks.\n\nReturns:\n    List of notebooks in requested format",
+   "inputSchema": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "name": "joplin_list_folders",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_list_foldersOutput",
+    "type": "object"
+   }
+  },
+  "joplin_list_notes": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "List Joplin Notes"
+   },
+   "description": "List all notes, optionally filtered by notebook.\n\nReturns:\n    List of notes in requested format",
+   "inputSchema": {
+    "properties": {
+     "folder_id": {
+      "description": "Filter notes by notebook ID",
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "joplin_list_notes",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_list_notesOutput",
+    "type": "object"
+   }
+  },
+  "joplin_list_tags": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "List Joplin Tags"
+   },
+   "description": "List all tags.\n\nReturns:\n    List of tags in requested format",
+   "inputSchema": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "name": "joplin_list_tags",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_list_tagsOutput",
+    "type": "object"
+   }
+  },
+  "joplin_replace_section": {
+   "annotations": {
+    "destructiveHint": false,
+    "readOnlyHint": false,
+    "title": "Replace the body of a named section of a Joplin note"
+   },
+   "description": "Replace everything between a heading and the next equal-or-higher heading.\n\nThe heading line itself is preserved. Sibling sections are not touched.\n\nReturns:\n    JSON with success / error envelope.",
+   "inputSchema": {
+    "properties": {
+     "heading_level": {
+      "default": 2,
+      "maximum": 6,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "new_content": {
+      "description": "Replacement body for the section. The heading line itself is preserved.",
+      "type": "string"
+     },
+     "note_id": {
+      "description": "The ID of the note to update",
+      "type": "string"
+     },
+     "section_heading": {
+      "description": "Heading text to locate",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "note_id",
+     "section_heading",
+     "new_content"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_replace_section",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_replace_sectionOutput",
+    "type": "object"
+   }
+  },
+  "joplin_search_notes": {
+   "annotations": {
+    "readOnlyHint": true,
+    "title": "Search Joplin Notes"
+   },
+   "description": "Search notes by title or body content.\n\nNote: This performs client-side filtering as Joplin Server doesn't have\na native search API.\n\nReturns:\n    Matching notes in requested format",
+   "inputSchema": {
+    "properties": {
+     "query": {
+      "description": "Search query (searches in title and body)",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_search_notes",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_search_notesOutput",
+    "type": "object"
+   }
+  },
+  "joplin_update_note": {
+   "annotations": {
+    "readOnlyHint": false,
+    "title": "Update a Joplin Note"
+   },
+   "description": "Update an existing note.\n\nReturns:\n    JSON confirmation or error",
+   "inputSchema": {
+    "properties": {
+     "body": {
+      "description": "New body content in Markdown",
+      "type": "string"
+     },
+     "force": {
+      "default": false,
+      "description": "Bypass the destructive-replacement safety guards (shrink-guard + unexpanded-shell-substitution detector). Required for legitimate migrations / drastic restructures that genuinely shrink the body. Default false.",
+      "type": "boolean"
+     },
+     "note_id": {
+      "description": "The ID of the note to update",
+      "type": "string"
+     },
+     "parent_id": {
+      "description": "Move note to this notebook ID",
+      "type": "string"
+     },
+     "title": {
+      "description": "New title for the note",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note_id"
+    ],
+    "type": "object"
+   },
+   "name": "joplin_update_note",
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "joplin_update_noteOutput",
+    "type": "object"
+   }
+  }
+ }
+}

@@ -511,3 +511,221 @@ def test_http_flat_legacy_and_bad_arguments(client, signed, monkeypatch, caplog)
     assert len(got) == 3
     assert "tool=joplin_get_note" in caplog.text and "outcome=invalid_arguments" in caplog.text
     assert "secret title" not in caplog.text
+
+
+# ── the tool surface, pinned ─────────────────────────────────────────────────
+
+def test_tool_list_is_unchanged():
+    import asyncio
+
+    tools = {t.name: t.model_dump(mode="json", exclude_none=True)
+             for t in asyncio.run(jum.mcp.list_tools())}
+    with open(os.path.join(os.path.dirname(__file__), "tools_golden.json"), encoding="utf-8") as f:
+        assert tools == json.load(f)["user"]
+
+
+def test_arguments_drop_what_does_not_parse():
+    gn, ap = _model("joplin_get_note"), _model("joplin_apply_patch")
+    assert jum._arguments(gn, {"params": "{not json", "note_id": "n1"}) == {"note_id": "n1"}
+    assert jum._arguments(gn, {"params": "[1]", "note_id": "n1"}) == {"note_id": "n1"}
+    # A non-text field sent as text that is no JSON list or object goes to the model as sent.
+    assert jum._arguments(ap, {"note_id": "n1", "operations": "not json"})["operations"] == "not json"
+    assert jum._arguments(ap, {"note_id": "n1", "operations": '"x"'})["operations"] == '"x"'
+    # An empty required text field is still given (and the model refuses it).
+    assert jum._arguments(gn, {"note_id": ""}) == {"note_id": ""}
+
+
+def test_outcome_of_a_tool_text():
+    assert jum._outcome_of('{"error": "x"}') == "tool_error"
+    assert jum._outcome_of('{"success": true}') == "ok"
+    assert jum._outcome_of("{not json") == "ok"
+
+
+def test_a_single_group_claim_is_a_group(signed):
+    assert jum._validate_incoming(signed(groups="ChatNotes"))["sub"] == A[0]
+    with pytest.raises(jum.AuthError):
+        jum._validate_incoming(signed(groups="ChatMail"))
+
+
+def test_a_tool_outside_a_request_has_no_identity():
+    import asyncio
+
+    with pytest.raises(jum.NoToken):
+        asyncio.run(jum.joplin_connect())
+
+
+def test_the_store_needs_its_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(jum, "_store", None)
+    monkeypatch.setattr(jum, "STORE_KEY", "")
+    with pytest.raises(RuntimeError, match="STORE_KEY is not set"):
+        jum._get_store()
+    monkeypatch.setattr(jum, "STORE_KEY", os.environ["STORE_KEY"])
+    monkeypatch.setattr(jum, "STORE_PATH", str(tmp_path / "opened.sqlite3"))
+    store = jum._get_store()
+    assert jum._get_store() is store and (tmp_path / "opened.sqlite3").exists()
+
+
+def test_another_sync_format_is_refused(monkeypatch, no_shared_session):
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    http = FakeHttp(email=A[1], info={"version": 2})
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    with pytest.raises(jum.Refused) as e:
+        jum._user_api(*A)
+    assert e.value.code == "joplin_unsupported"
+    assert jum._get_store().get("creds", A[0]) is None
+    assert ("post", f"{jum.JOPLIN_URL}/applications/app/delete") in http.calls
+
+
+def test_a_refusal_stands_when_joplin_cannot_remove_the_application(monkeypatch, no_shared_session, caplog):
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    http = FakeHttp(email="b@example.test")
+    real_post = http.post
+
+    def post(url, **kw):
+        if url.endswith("/delete"):
+            raise OSError("connection reset")
+        return real_post(url, **kw)
+
+    http.post = post
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    with pytest.raises(jum.Refused) as e:
+        jum._user_api(*A)
+    assert e.value.code == "joplin_account_mismatch"
+    assert "could not remove a refused application" in caplog.text
+    assert jum._get_store().get("creds", A[0]) is None
+
+
+def test_an_old_session_or_a_new_email_opens_a_new_session(monkeypatch, no_shared_session):
+    made = []
+    monkeypatch.setattr(jum, "_new_http", lambda: made.append(FakeHttp(email=A[1])) or made[-1])
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    first = jum._user_api(*A)
+    assert jum._user_api(A[0], A[1].upper()) is first  # the email compares case-blind
+    api, at, email = jum._apis[A[0]]
+    jum._apis[A[0]] = (api, at - jum.SESSION_MAX_AGE - 1, email)
+    second = jum._user_api(*A)
+    assert second is not first and len(made) == 2
+
+
+def test_an_expired_link_is_replaced(monkeypatch):
+    polled = _application_auth(monkeypatch, 403)
+    with pytest.raises(jum.UserFacing) as first:
+        jum._user_api(*A)
+    monkeypatch.setattr(jum, "PENDING_TTL", -1.0)
+    with pytest.raises(jum.UserFacing) as second:
+        jum._user_api(*A)
+    assert "not connected to your Joplin notes yet" in second.value.message
+    assert second.value.extra["connect_url"] != first.value.extra["connect_url"]
+    assert polled == []
+
+
+@pytest.mark.parametrize("login,message", [
+    (403, "Disconnected: Chat forgot the credential and removed it in Joplin."),
+    (500, "Chat forgot the credential. Joplin did not confirm its removal: delete the "
+          "'vchat.mdapi.ch' entry on https://notes.mdapi.ch/applications yourself."),
+])
+def test_disconnect_without_a_live_session(monkeypatch, no_shared_session, login, message):
+    monkeypatch.setattr(jum, "_new_http", lambda: FakeHttp(login_status=login))
+    jum._get_store().put("creds", A[0], {"app_id": "app-a", "password": "pw", "email": A[1]})
+    jum._get_store().put("pending", A[0], {"aid": "x"})
+    assert jum._disconnect(*A) == {"connected": False, "message": message}
+    assert jum._get_store().get("creds", A[0]) is None
+    assert jum._get_store().get("pending", A[0]) is None
+
+
+def test_disconnect_when_joplin_shows_no_form(monkeypatch, no_shared_session):
+    http = FakeHttp(email=A[1])
+    real_get = http.get
+    http.get = lambda url, **kw: Resp(200, text="<p>signed out</p>") if url.endswith("/applications") else real_get(url, **kw)
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    jum._get_store().put("creds", A[0], {"app_id": "app-a", "password": "pw", "email": A[1]})
+    jum._user_api(*A)
+    assert "did not confirm its removal" in jum._disconnect(*A)["message"]
+    assert not any(c[1].endswith("/delete") for c in http.calls)
+
+
+def test_disconnect_when_not_connected():
+    jum._get_store().put("pending", A[0], {"aid": "x"})
+    assert jum._disconnect(*A) == {"connected": False, "message": "Chat was not connected to your Joplin notes."}
+    assert jum._get_store().get("pending", A[0]) is None
+
+
+# ── one person's Joplin, end to end (the loopback Joplin in conftest.py) ─────
+
+@pytest.fixture
+def own_joplin(joplin, monkeypatch):
+    monkeypatch.setattr(jum, "JOPLIN_URL", joplin.url)
+    joplin.account_email = A[1]
+    return joplin
+
+
+def test_requests_need_a_live_sync_lock(own_joplin, no_shared_session):
+    import datetime
+
+    from joppy.server_api import LockError
+
+    own_joplin.apps["app0"] = "app-password"
+    nid = own_joplin.add_note(1, "Plan", "x")
+    path = f"/api/items/root:/{nid}.md:/content"
+    api = jum.UserApi("app0", "app-password")
+    with pytest.raises(LockError, match="No sync lock"):
+        api.get(path)
+    api.current_sync_lock = api._add_lock()
+    assert api.get(path).text.startswith("Plan\n")
+    posts = own_joplin.requests.count(("POST", "/api/locks"))
+    api.get(path)
+    assert own_joplin.requests.count(("POST", "/api/locks")) == posts  # a fresh lock is kept
+    api.current_sync_lock.updatedTime -= datetime.timedelta(seconds=61)
+    api.get(path)
+    assert own_joplin.requests.count(("POST", "/api/locks")) == posts + 1  # refreshed past a minute
+    api.current_sync_lock.updatedTime -= datetime.timedelta(minutes=4)
+    with pytest.raises(LockError, match="expired"):
+        api.get(path)
+
+
+def test_connect_use_and_disconnect_over_http(client, signed, own_joplin, caplog, no_shared_session):
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    tok = signed()
+
+    def call(name, arguments=None):
+        r = _rpc(client, tok, name, arguments)
+        assert r.status_code == 200, r.text
+        return r.json()["result"]["content"][0]["text"]
+
+    link = json.loads(call("joplin_list_notes"))
+    assert link["error"] == "joplin_not_connected" and "outcome=joplin_not_connected" in caplog.text
+    aid = link["connect_url"].split("/")[4]
+    assert json.loads(call("joplin_connect"))["error"] == "joplin_not_connected"
+    own_joplin.authorise(aid)
+
+    created = json.loads(call("joplin_create_note", {"title": "Plan", "parent_id": "f" * 32, "body": "x"}))
+    assert created["success"] is True
+    assert own_joplin.body(created["note_id"]).startswith("Plan\n\nx\n\n")
+    assert call("joplin_list_notes").startswith("# Notes\n\n- **Plan**")
+    assert not own_joplin.locks
+    missing = json.loads(call("joplin_get_note", {"note_id": "0" * 32}))
+    assert list(missing) == ["error"] and "outcome=tool_error" in caplog.text
+    # As it is today: joppy's sync_lock skips its delete when the body raises, so the
+    # lock is left on the server until it expires.
+    assert len(own_joplin.locks) == 1
+    assert json.loads(call("joplin_connect")) == {
+        "connected": True, "joplin": jum.JOPLIN_PUBLIC_URL, "account": A[1],
+        "message": "Chat is connected to your own Joplin notes."}
+    assert own_joplin.logins == 1
+
+    assert json.loads(call("joplin_disconnect"))["message"].startswith("Disconnected:")
+    assert own_joplin.apps == {}
+    assert json.loads(call("joplin_get_note", {"note_id": "0" * 32}))["error"] == "joplin_not_connected"
+    assert "Plan" not in caplog.text and A[1] not in caplog.text
+
+
+def test_an_unreachable_joplin_is_an_internal_error(client, signed, monkeypatch, caplog):
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    monkeypatch.setattr(jum, "JOPLIN_URL", "http://127.0.0.1:9")
+    jum._get_store().put("pending", A[0], {"aid": "x"})
+    tok = signed()
+    for name in ("joplin_list_tags", "joplin_connect"):
+        r = _rpc(client, tok, name)
+        assert json.loads(r.json()["result"]["content"][0]["text"]) == {
+            "error": "internal_error", "detail": "ConnectionError"}
+    assert caplog.text.count("outcome=error_ConnectionError") == 2
