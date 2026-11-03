@@ -375,7 +375,11 @@ def test_create_folder(server_mode):
     assert "parent_id" not in server_mode.items[f"{fid}.md"]
     sub = call_json("joplin_create_folder", title="Sub", parent_id=fid)["folder_id"]
     assert f"parent_id: {fid}" in server_mode.items[f"{sub}.md"]
-    assert "404" not in call("joplin_create_folder", title="Top", parent_id="")
+    # An empty parent_id means a top-level notebook. Checked by structure, not by searching the
+    # reply for "404": the reply carries a random 32-hex folder_id, which holds "404" ~0.7% of runs.
+    top = call_json("joplin_create_folder", title="Top", parent_id="")
+    assert top["success"] is True
+    assert "parent_id" not in server_mode.items[f"{top['folder_id']}.md"]
 
 
 def test_create_folder_error(server_mode, monkeypatch):
