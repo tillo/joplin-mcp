@@ -463,8 +463,6 @@ def _validate_body_replacement(api, note_id, new_body, force):
     """
     if force:
         return None
-    if not isinstance(new_body, str):
-        return None
 
     # Guard 1: unexpanded shell-substitution markers near the start of the body
     head = new_body[:_SHELL_SUB_SCAN_LIMIT]
