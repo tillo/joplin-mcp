@@ -8,7 +8,6 @@ import contextlib
 import json
 import logging
 import os
-import sys
 import time
 import types
 
@@ -17,7 +16,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 os.environ.setdefault("STORE_KEY", Fernet.generate_key().decode())
 os.environ.setdefault("ALLOWED_GROUPS", "ChatNotes")
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import jwt  # noqa: E402
 import pytest  # noqa: E402

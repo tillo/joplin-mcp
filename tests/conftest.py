@@ -4,22 +4,18 @@ Every item here is made up in the test that needs it.
 """
 
 import json
-import os
 import re
-import sys
 import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-import pytest  # noqa: E402
+import pytest
 
 # Imported before joplin_user_mcp, which rebinds jsm._get_api to the per-call API at import:
 # the bearer (single-account) mode runs this original.
-import joplin_server_mcp as jsm  # noqa: E402
+import joplin_server_mcp as jsm
 
 SERVER_GET_API = jsm._get_api
 
