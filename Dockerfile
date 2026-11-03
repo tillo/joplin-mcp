@@ -58,10 +58,11 @@ COPY joplin_server_mcp.py /app/joplin_server_mcp.py
 COPY joplin_user_mcp.py /app/joplin_user_mcp.py
 
 # Install Python dependencies
-# mcp capped <2.0.0: upstream's 2.0.0 (released 2026-07-28) restructured the
-# package and dropped mcp.server.fastmcp, which joplin_server_mcp.py imports
-# directly. The floating >=1.0.0 bound let a scheduled CACHEBUST_DAY rebuild
-# pick up 2.0.0 and ship a joplin-mcp image whose child process cannot start.
+# mcp is pinned (==2.3.0): both entry points import MCPServer from
+# mcp.server.mcpserver (mcp 2.x; FastMCP in 1.x) and joplin_user_mcp.py passes
+# the transport settings to streamable_http_app(). A floating bound once let a
+# scheduled CACHEBUST_DAY rebuild pick up 2.0.0 and ship a joplin-mcp image
+# whose child process could not start, so a major bump is a port, not a pin change.
 # PyJWT, cryptography, uvicorn and requests are for joplin_user_mcp.py.
 # requirements.txt is the one list: CI's `test` job installs the same file.
 COPY requirements.txt /app/requirements.txt
