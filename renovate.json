@@ -24,6 +24,13 @@
       "allowedVersions": "<5"
     },
     {
+      "description": "linkify-it STAYS ON 5.x. The `overrides` pin exists only to force a CVE-fixed linkify-it under markdown-it 13 (which asks for ^4). linkify-it 6 changed its CommonJS entry from `module.exports = LinkifyIt` to named exports, so markdown-it 13's `new LinkifyIt()` throws `TypeError: LinkifyIt is not a constructor` the moment a MarkdownIt instance is built. Lift this cap only when the markdown-it that Joplin ships depends on linkify-it 6 (Renovate MR !93, closed).",
+      "matchPackageNames": [
+        "linkify-it"
+      ],
+      "allowedVersions": "<6"
+    },
+    {
       "description": "GRADUATED — minor+patch (promoted by the graduation tick / Windmill f/desk/renovate_graduate). The baseline here is MR-only, so this list is the whole minor+patch automerge. Must sit above GRADUATED — major. `__none__` is a sentinel, not a package: it keeps an emptied list inert instead of matching everything.",
       "matchUpdateTypes": [
         "minor",
