@@ -161,12 +161,17 @@ def _validate_incoming(token: str) -> dict:
         raise AuthError("no verified email")
     if not ALLOWED_GROUPS:
         raise AuthError("server misconfigured: ALLOWED_GROUPS is empty")
+    if not set(ALLOWED_GROUPS) & _groups(claims):
+        raise AuthError("user is not in a group allowed to use notes in Chat")
+    return claims
+
+
+def _groups(claims: dict) -> set[str]:
+    """The token's `groups` claim; Keycloak sends a lone group as a string."""
     groups = claims.get("groups") or []
     if isinstance(groups, str):
         groups = [groups]
-    if not set(ALLOWED_GROUPS) & {str(g) for g in groups}:
-        raise AuthError("user is not in a group allowed to use notes in Chat")
-    return claims
+    return {str(g) for g in groups}
 
 
 # ── per-request identity ─────────────────────────────────────────────────────
@@ -241,6 +246,11 @@ def _new_http() -> requests.Session:
     s = requests.Session()
     s.headers.update(JOPLIN_HEADERS)
     return s
+
+
+def _needs_sync_lock(path: str) -> bool:
+    return not (path == "/login" or path.startswith("/api/locks") or "info.json" in path
+                or ".sync/version.txt" in path)
 
 
 class UserApi(ServerApi):
@@ -321,17 +331,21 @@ class UserApi(ServerApi):
         return getattr(self._http, method)(f"{self.url}{path}?{query_str}", data=data, files=files,
                                            json=json, headers=headers, timeout=HTTP_TIMEOUT)
 
+    def _require_sync_lock(self, path: str) -> None:
+        # joppy's own lock checks (1.0.4): a live lock, refreshed once older than a minute.
+        if not _needs_sync_lock(path):
+            return
+        if self.current_sync_lock is None:
+            raise LockError("No sync lock. Acquire a lock before issuing requests.")
+        if not self._is_lock_active(self.current_sync_lock.updatedTime):
+            raise LockError("Sync lock expired. Delete the lock before issuing requests.")
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        if self.current_sync_lock.updatedTime + self.lock_auto_refresh_interval < now:
+            self.current_sync_lock = self._add_lock()
+
     def _request(self, method, path, query=None, data=None, files=None, json=None, headers=None):
         # joppy's own _request (1.0.4), sent through self._http instead of the shared SESSION.
-        if not (path == "/login" or path.startswith("/api/locks") or "info.json" in path
-                or ".sync/version.txt" in path):
-            if self.current_sync_lock is None:
-                raise LockError("No sync lock. Acquire a lock before issuing requests.")
-            if not self._is_lock_active(self.current_sync_lock.updatedTime):
-                raise LockError("Sync lock expired. Delete the lock before issuing requests.")
-            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-            if self.current_sync_lock.updatedTime + self.lock_auto_refresh_interval < now:
-                self.current_sync_lock = self._add_lock()
+        self._require_sync_lock(path)
         r = self._send(method, path, query, data, files, json, headers)
         if r.status_code == 403 and time.monotonic() - self.logged_in_at > RELOGIN_MIN_AGE:
             self._login()
@@ -407,6 +421,39 @@ def _cache(sub: str, email: str, api: UserApi) -> UserApi:
     return api
 
 
+def _reopen_session(sub: str, email: str, cred: dict) -> UserApi:
+    """A new session with the stored credential. Raises UserFacing."""
+    if cred.get("email", "").lower() != email.lower():
+        # Keycloak now gives another email than the one this credential was issued for.
+        _forget(sub)
+        raise UserFacing("joplin_account_mismatch",
+                         "Your account email changed since Chat was connected to Joplin; "
+                         "call joplin_connect to connect again.")
+    try:
+        return _open_session(sub, email, cred)
+    except Revoked as e:
+        raise UserFacing("joplin_revoked", str(e)) from None
+    except Refused:
+        _forget(sub)
+        raise
+
+
+def _collect_credential(store: Store, sub: str, email: str, aid: str) -> UserApi:
+    """Fetch the credential of a link the person may have authorised, and open a session with it."""
+    r = requests.get(f"{JOPLIN_URL}/api/application_auth/{aid}", headers=JOPLIN_HEADERS,
+                     timeout=HTTP_TIMEOUT)
+    if r.status_code == 403:
+        raise _not_connected(aid, email, waiting=True)
+    r.raise_for_status()
+    j = r.json()
+    # Joplin hands the credential out once: from here on it exists only in this process.
+    store.delete("pending", sub)
+    cred = {"app_id": j["id"], "password": j["password"], "email": email.lower()}
+    api = _open_session(sub, email, cred)
+    store.put("creds", sub, cred)
+    return api
+
+
 def _user_api(sub: str, email: str) -> UserApi:
     """This person's live Joplin session, connecting first if need be. Raises UserFacing."""
     with _registry_lock:
@@ -417,37 +464,11 @@ def _user_api(sub: str, email: str) -> UserApi:
     store = _get_store()
     found = store.get("creds", sub)
     if found:
-        cred = found[0]
-        if cred.get("email", "").lower() != email.lower():
-            # Keycloak now gives another email than the one this credential was issued for.
-            _forget(sub)
-            raise UserFacing("joplin_account_mismatch",
-                             "Your account email changed since Chat was connected to Joplin; "
-                             "call joplin_connect to connect again.")
-        try:
-            api = _open_session(sub, email, cred)
-        except Revoked as e:
-            raise UserFacing("joplin_revoked", str(e)) from None
-        except Refused:
-            _forget(sub)
-            raise
-        return _cache(sub, email, api)
+        return _cache(sub, email, _reopen_session(sub, email, found[0]))
 
     pending = store.get("pending", sub)
     if pending and time.time() - pending[1] < PENDING_TTL:
-        aid = pending[0]["aid"]
-        r = requests.get(f"{JOPLIN_URL}/api/application_auth/{aid}", headers=JOPLIN_HEADERS,
-                         timeout=HTTP_TIMEOUT)
-        if r.status_code == 403:
-            raise _not_connected(aid, email, waiting=True)
-        r.raise_for_status()
-        j = r.json()
-        # Joplin hands the credential out once: from here on it exists only in this process.
-        store.delete("pending", sub)
-        cred = {"app_id": j["id"], "password": j["password"], "email": email.lower()}
-        api = _open_session(sub, email, cred)
-        store.put("creds", sub, cred)
-        return _cache(sub, email, api)
+        return _cache(sub, email, _collect_credential(store, sub, email, pending[0]["aid"]))
 
     aid = str(uuid.uuid4())
     store.put("pending", sub, {"aid": aid})
@@ -574,61 +595,82 @@ def _is_text(field) -> bool:
     return field.annotation in (str, Optional[str])
 
 
+def _inline_ref(node: dict, defs: dict) -> dict:
+    if "$ref" not in node:
+        return node
+    rest = {k: v for k, v in node.items() if k != "$ref"}
+    return {**defs[node["$ref"].rsplit("/", 1)[-1]], **rest}
+
+
+def _unwrap_optional(node: dict) -> dict:
+    # Optional[X] = None: say X; leaving the field out is how to give no value.
+    options = node.get("anyOf")
+    if not (isinstance(options, list) and len(options) == 2 and {"type": "null"} in options):
+        return node
+    rest = {k: v for k, v in node.items() if k != "anyOf" and not (k == "default" and v is None)}
+    return {**next(o for o in options if o != {"type": "null"}), **rest}
+
+
+def _tidy(node, defs: dict):
+    """A JSON schema node with $refs inlined, Optional unwrapped and pydantic's titles dropped."""
+    if isinstance(node, list):
+        return [_tidy(n, defs) for n in node]
+    if not isinstance(node, dict):
+        return node
+    node = _unwrap_optional(_inline_ref(node, defs))
+    return {k: _tidy_entry(k, v, defs) for k, v in node.items() if k != "title"}
+
+
+def _tidy_entry(key: str, value, defs: dict):
+    # "title" is pydantic's label for a schema; under "properties" it is a field name.
+    if key == "properties":
+        return {p: _tidy(s, defs) for p, s in value.items()}
+    return _tidy(value, defs)
+
+
 def _flat_schema(model) -> dict:
     full = model.model_json_schema()
     defs = full.get("$defs", {})
-
-    def tidy(node):
-        if isinstance(node, list):
-            return [tidy(n) for n in node]
-        if not isinstance(node, dict):
-            return node
-        if "$ref" in node:
-            rest = {k: v for k, v in node.items() if k != "$ref"}
-            node = {**defs[node["$ref"].rsplit("/", 1)[-1]], **rest}
-        options = node.get("anyOf")
-        if isinstance(options, list) and len(options) == 2 and {"type": "null"} in options:
-            # Optional[X] = None: say X; leaving the field out is how to give no value.
-            rest = {k: v for k, v in node.items() if k != "anyOf" and not (k == "default" and v is None)}
-            node = {**next(o for o in options if o != {"type": "null"}), **rest}
-        # "title" is pydantic's label for a schema; under "properties" it is a field name.
-        return {k: ({p: tidy(s) for p, s in v.items()} if k == "properties" else tidy(v))
-                for k, v in node.items() if k != "title"}
-
-    props = {k: tidy(v) for k, v in full["properties"].items() if k not in HIDDEN}
+    props = {k: _tidy(v, defs) for k, v in full["properties"].items() if k not in HIDDEN}
     return {"type": "object", "properties": props,
             "required": [k for k in full.get("required", []) if k not in HIDDEN]}
 
 
-def _arguments(model, sent: dict) -> dict:
-    args = {}
+def _legacy_arguments(sent: dict) -> dict:
+    """The old nested {"params": {...}} shape, sent as an object or as a JSON text."""
     legacy = sent.get("params")
     if isinstance(legacy, str):
         try:
             legacy = json.loads(legacy)
         except ValueError:
             legacy = None
-    if isinstance(legacy, dict):
-        args.update(legacy)
-    args.update({k: v for k, v in sent.items() if k != "params" and v is not None})
-    out = {}
-    for name, field in model.model_fields.items():
-        value = args.get(name)
-        if value is None:
-            continue
-        if value == "" and not field.is_required() and (field.default is None or not _is_text(field)):
-            continue
-        if name == "response_format" and value not in ("markdown", "json"):
-            continue
-        if isinstance(value, str) and not _is_text(field):
-            try:
-                parsed = json.loads(value)
-            except ValueError:
-                parsed = None
-            if isinstance(parsed, (list, dict)):
-                value = parsed  # e.g. apply_patch operations sent as a JSON text
-        out[name] = value
-    return out
+    return legacy if isinstance(legacy, dict) else {}
+
+
+def _not_given(name: str, field, value) -> bool:
+    if value is None:
+        return True
+    if value == "" and not field.is_required() and (field.default is None or not _is_text(field)):
+        return True
+    return name == "response_format" and value not in ("markdown", "json")
+
+
+def _decoded(field, value):
+    """A list or object sent as JSON text to a field that is not text, decoded; else as sent."""
+    if not isinstance(value, str) or _is_text(field):
+        return value
+    try:
+        parsed = json.loads(value)
+    except ValueError:
+        return value
+    # e.g. apply_patch operations sent as a JSON text
+    return parsed if isinstance(parsed, (list, dict)) else value
+
+
+def _arguments(model, sent: dict) -> dict:
+    args = {**_legacy_arguments(sent), **{k: v for k, v in sent.items() if k != "params" and v is not None}}
+    return {name: _decoded(field, args.get(name)) for name, field in model.model_fields.items()
+            if not _not_given(name, field, args.get(name))}
 
 
 def _invalid(tool: str, e: ValidationError) -> str:
