@@ -754,6 +754,36 @@ def joplin_delete_note(params: DeleteNoteInput) -> str:
         return json.dumps({"error": str(e)}, indent=2)
 
 
+def _todo_prefix(note: dt.NoteData) -> str:
+    if not note.is_todo:
+        return ""
+    return "[x] " if note.todo_completed else "[ ] "
+
+
+def _note_list_lines(notes: List[dt.NoteData]) -> List[str]:
+    lines = []
+    for note in notes:
+        lines.append(f"- {_todo_prefix(note)}**{note.title or 'Untitled'}**")
+        lines.append(f"  - ID: `{note.id}`")
+        lines.append(f"  - Updated: {_format_timestamp(note.updated_time)}")
+    return lines
+
+
+def _note_matches(note: dt.NoteData, query_lower: str) -> bool:
+    """Case-insensitive substring match on the title or the body."""
+    title_match = note.title and query_lower in note.title.lower()
+    body_match = note.body and query_lower in note.body.lower()
+    return bool(title_match or body_match)
+
+
+def _search_result_lines(notes: List[dt.NoteData]) -> List[str]:
+    lines = []
+    for note in notes:
+        lines.append(f"- **{note.title or 'Untitled'}**")
+        lines.append(f"  - ID: `{note.id}`")
+    return lines
+
+
 @mcp.tool(
     name="joplin_list_notes",
     annotations={
@@ -786,18 +816,7 @@ def joplin_list_notes(params: ListNotesInput) -> str:
 
             # Markdown format
             lines = ["# Notes", ""]
-
-            if not all_notes:
-                lines.append("*No notes found*")
-            else:
-                for note in all_notes:
-                    prefix = ""
-                    if note.is_todo:
-                        prefix = "[x] " if note.todo_completed else "[ ] "
-                    lines.append(f"- {prefix}**{note.title or 'Untitled'}**")
-                    lines.append(f"  - ID: `{note.id}`")
-                    lines.append(f"  - Updated: {_format_timestamp(note.updated_time)}")
-
+            lines.extend(_note_list_lines(all_notes) or ["*No notes found*"])
             lines.append(f"\n*Total: {len(all_notes)} notes*")
             return "\n".join(lines)
     except Exception as e:
@@ -829,12 +848,7 @@ def joplin_search_notes(params: SearchNotesInput) -> str:
             query_lower = params.query.lower()
 
             # Client-side search
-            matches = []
-            for note in all_notes:
-                title_match = note.title and query_lower in note.title.lower()
-                body_match = note.body and query_lower in note.body.lower()
-                if title_match or body_match:
-                    matches.append(note)
+            matches = [note for note in all_notes if _note_matches(note, query_lower)]
 
             if params.response_format == ResponseFormat.JSON:
                 return json.dumps({
@@ -845,14 +859,7 @@ def joplin_search_notes(params: SearchNotesInput) -> str:
 
             # Markdown format
             lines = [f"# Search Results for '{params.query}'", ""]
-
-            if not matches:
-                lines.append("*No results found*")
-            else:
-                for note in matches:
-                    lines.append(f"- **{note.title or 'Untitled'}**")
-                    lines.append(f"  - ID: `{note.id}`")
-
+            lines.extend(_search_result_lines(matches) or ["*No results found*"])
             lines.append(f"\n*Found {len(matches)} matching notes*")
             return "\n".join(lines)
     except Exception as e:
@@ -1277,6 +1284,71 @@ def _section_end_line(body: str, heading_line_idx: int, level: int) -> int:
     return len(lines)
 
 
+def _with_section_appended(lines, head_idx, end_idx, content, position):
+    """The note's lines with `content` added at the top or bottom of its section."""
+    insert_block = content.rstrip("\n").split("\n")
+    if position == "top":
+        # Skip a single blank line immediately after the heading if present,
+        # then insert; ensures a blank line separates heading from inserted block.
+        ins = head_idx + 1
+        if ins < len(lines) and lines[ins].strip() == "":
+            ins += 1
+        return lines[:ins] + insert_block + [""] + lines[ins:]
+    # bottom: trim trailing blank lines inside the section, then append, then re-pad.
+    e = end_idx
+    while e > head_idx + 1 and lines[e - 1].strip() == "":
+        e -= 1
+    return lines[:e] + [""] + insert_block + [""] + lines[end_idx:]
+
+
+def _with_section_replaced(lines, head_idx, end_idx, new_content):
+    """The note's lines with everything under the heading replaced by `new_content`."""
+    new_block = new_content.rstrip("\n").split("\n") if new_content else []
+    # Pad: blank line after heading, blank line before next section (if not EOF)
+    new_section = [lines[head_idx], ""] + new_block
+    if end_idx < len(lines):
+        new_section += [""]
+    return lines[:head_idx] + new_section + lines[end_idx:]
+
+
+def _keep_trailing_newline(old: str, new: str) -> str:
+    """Preserve original trailing newline state."""
+    if old.endswith("\n") and not new.endswith("\n"):
+        return new + "\n"
+    return new
+
+
+def _edit_section(params, edit, message: str, **result) -> str:
+    """Rewrite one section of a note: edit(lines, heading index, end index) -> new lines.
+
+    Returns the JSON envelope of joplin_append_to_section / joplin_replace_section.
+    """
+    try:
+        with _with_lock() as api:
+            note = api.get_note(params.note_id)
+            body = note.body or ""
+            try:
+                head_idx = _find_heading_line(body, params.section_heading, params.heading_level)
+            except LookupError as e:
+                return str(e)
+            end_idx = _section_end_line(body, head_idx, params.heading_level)
+            new_lines = edit(body.splitlines(keepends=False), head_idx, end_idx)
+            new_body = _keep_trailing_newline(body, "\n".join(new_lines))
+
+            api.modify_note(params.note_id, body=new_body)
+            return json.dumps({
+                "success": True,
+                "note_id": params.note_id,
+                "section_heading": params.section_heading,
+                **result,
+                "body_chars_before": len(body),
+                "body_chars_after": len(new_body),
+                "message": message,
+            }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+
 @mcp.tool(
     name="joplin_append_to_section",
     annotations={
@@ -1295,54 +1367,11 @@ def joplin_append_to_section(params: AppendToSectionInput) -> str:
     Returns:
         JSON with success / error envelope.
     """
-    try:
-        with _with_lock() as api:
-            note = api.get_note(params.note_id)
-            body = note.body or ""
-            try:
-                head_idx = _find_heading_line(body, params.section_heading, params.heading_level)
-            except LookupError as e:
-                return str(e)
-            end_idx = _section_end_line(body, head_idx, params.heading_level)
+    def edit(lines, head_idx, end_idx):
+        return _with_section_appended(lines, head_idx, end_idx, params.content, params.position)
 
-            lines = body.splitlines(keepends=False)
-            insert_text = params.content
-            if not insert_text.endswith("\n"):
-                insert_text += "\n"
-            insert_block = insert_text.rstrip("\n").split("\n")
-
-            if params.position == "top":
-                # Skip a single blank line immediately after the heading if present,
-                # then insert; ensures a blank line separates heading from inserted block.
-                ins = head_idx + 1
-                if ins < len(lines) and lines[ins].strip() == "":
-                    ins += 1
-                new_lines = lines[:ins] + insert_block + [""] + lines[ins:]
-            else:  # bottom
-                # Trim trailing blank lines inside the section, then append, then re-pad.
-                e = end_idx
-                while e > head_idx + 1 and lines[e - 1].strip() == "":
-                    e -= 1
-                new_lines = lines[:e] + [""] + insert_block + [""] + lines[end_idx:]
-
-            new_body = "\n".join(new_lines)
-            # Preserve original trailing newline state
-            if body.endswith("\n") and not new_body.endswith("\n"):
-                new_body += "\n"
-
-            api.modify_note(params.note_id, body=new_body)
-            return json.dumps({
-                "success": True,
-                "note_id": params.note_id,
-                "section_heading": params.section_heading,
-                "position": params.position,
-                "appended_chars": len(params.content),
-                "body_chars_before": len(body),
-                "body_chars_after": len(new_body),
-                "message": "Section appended successfully",
-            }, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e)}, indent=2)
+    return _edit_section(params, edit, "Section appended successfully",
+                         position=params.position, appended_chars=len(params.content))
 
 
 @mcp.tool(
@@ -1361,39 +1390,10 @@ def joplin_replace_section(params: ReplaceSectionInput) -> str:
     Returns:
         JSON with success / error envelope.
     """
-    try:
-        with _with_lock() as api:
-            note = api.get_note(params.note_id)
-            body = note.body or ""
-            try:
-                head_idx = _find_heading_line(body, params.section_heading, params.heading_level)
-            except LookupError as e:
-                return str(e)
-            end_idx = _section_end_line(body, head_idx, params.heading_level)
+    def edit(lines, head_idx, end_idx):
+        return _with_section_replaced(lines, head_idx, end_idx, params.new_content)
 
-            lines = body.splitlines(keepends=False)
-            new_block = params.new_content.rstrip("\n").split("\n") if params.new_content else []
-            # Pad: blank line after heading, blank line before next section (if not EOF)
-            new_section = [lines[head_idx], ""] + new_block
-            if end_idx < len(lines):
-                new_section += [""]
-
-            new_lines = lines[:head_idx] + new_section + lines[end_idx:]
-            new_body = "\n".join(new_lines)
-            if body.endswith("\n") and not new_body.endswith("\n"):
-                new_body += "\n"
-
-            api.modify_note(params.note_id, body=new_body)
-            return json.dumps({
-                "success": True,
-                "note_id": params.note_id,
-                "section_heading": params.section_heading,
-                "body_chars_before": len(body),
-                "body_chars_after": len(new_body),
-                "message": "Section replaced successfully",
-            }, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e)}, indent=2)
+    return _edit_section(params, edit, "Section replaced successfully")
 
 
 @mcp.tool(
