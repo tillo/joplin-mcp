@@ -5,7 +5,7 @@
   "description": "Node CLI tooling baked into the joplin-mcp image (supergateway bridge + joplin CLI). A local install so `overrides` can pin CVE-fixed transitive versions — `npm install -g` ignores overrides.",
   "dependencies": {
     "supergateway": "^4.0.0",
-    "joplin": "3.6.2"
+    "joplin": "3.7.1"
   },
   "overrides": {
     "tar": "7.5.22",
