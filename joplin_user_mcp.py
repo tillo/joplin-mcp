@@ -771,21 +771,33 @@ async def _run_own(tool: str, fn) -> str:
         log.info("tool=%s user=%s outcome=%s ms=%d", tool, who, outcome, int((time.monotonic() - t0) * 1000))
 
 
-@mcp.tool(annotations={"title": "Connect my Joplin notes", "readOnlyHint": True})
+def _caller_tool(fn, **tool_kwargs):
+    """Register a tool whose body is fn(sub, email), run for the caller by _run_own. The
+    decorated function only declares the tool: its name, and its docstring as description."""
+    def register(declaration):
+        async def tool() -> str:
+            return await _run_own(declaration.__name__, fn)
+
+        tool.__name__, tool.__doc__ = declaration.__name__, declaration.__doc__
+        return mcp.tool(**tool_kwargs)(tool)
+
+    return register
+
+
+@_caller_tool(_connect_status, annotations={"title": "Connect my Joplin notes", "readOnlyHint": True})
 async def joplin_connect() -> str:
     """Connect Chat to my own Joplin notes (notes.mdapi.ch), or check that it is connected.
     When it is not connected yet, this returns a link: give it to me, I open it, sign in to
     Joplin with my own account and press Authorise, then call this again. The other joplin_*
     tools return the same link while the connection is missing."""
-    return await _run_own("joplin_connect", _connect_status)
 
 
-@mcp.tool(annotations={"title": "Disconnect my Joplin notes", "readOnlyHint": False, "destructiveHint": False})
+@_caller_tool(_disconnect, annotations={"title": "Disconnect my Joplin notes", "readOnlyHint": False,
+                                        "destructiveHint": False})
 async def joplin_disconnect() -> str:
     """Disconnect Chat from my Joplin notes: Chat forgets its credential and removes it in
     Joplin (the 'vchat.mdapi.ch' entry on notes.mdapi.ch/applications). My notes are not
     touched. Use it only when I ask to disconnect."""
-    return await _run_own("joplin_disconnect", _disconnect)
 
 
 # ── HTTP surface ─────────────────────────────────────────────────────────────
