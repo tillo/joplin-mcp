@@ -50,6 +50,7 @@ import asyncio
 import datetime
 import hashlib
 import hmac
+import importlib.metadata
 import inspect
 import json
 import logging
@@ -68,7 +69,7 @@ import requests
 from cryptography.fernet import Fernet
 from joppy.server_api import LockError, ServerApi
 from jwt import PyJWKClient
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import ValidationError, WrapValidator
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -176,7 +177,7 @@ def _groups(claims: dict) -> set[str]:
 
 # ── per-request identity ─────────────────────────────────────────────────────
 # (sub, email, who): who is the 12-hex hash that logs carry. Set by the auth middleware;
-# FastMCP runs the tool call inside the request's task, and asyncio.to_thread copies it.
+# MCPServer runs the tool call inside the request's task, and asyncio.to_thread copies it.
 _current = ContextVar("joplin_user_mcp_identity", default=None)
 
 
@@ -539,13 +540,9 @@ def _transport_security() -> TransportSecuritySettings:
     )
 
 
-mcp = FastMCP(
-    "joplin",
-    stateless_http=True,
-    json_response=True,
-    transport_security=_transport_security(),
-)
-mcp.settings.streamable_http_path = "/mcp"
+# serverInfo.version stays what mcp 1.x reported: the installed SDK version
+# (2.x would send "" unless told).
+mcp = MCPServer("joplin", version=importlib.metadata.version("mcp"))
 
 
 # ── tools ────────────────────────────────────────────────────────────────────
@@ -585,7 +582,7 @@ def _passthrough(value, _handler):
     return value
 
 
-# FastMCP validates arguments against a model built from the signature, and JSON-decodes string
+# MCPServer validates arguments against a model built from the signature, and JSON-decodes string
 # values of any argument not annotated exactly `str`. Raw keeps both away from what the model
 # sent (a body that happens to be a JSON text stays text); the upstream model validates instead.
 Raw = Annotated[str, WrapValidator(_passthrough)]
@@ -856,7 +853,13 @@ class AuthMiddleware:
         await send({"type": "http.response.body", "body": body})
 
 
-app = mcp.streamable_http_app()
+# mcp 2.x takes the transport settings here, not on the constructor.
+app = mcp.streamable_http_app(
+    streamable_http_path="/mcp",
+    stateless_http=True,
+    json_response=True,
+    transport_security=_transport_security(),
+)
 
 
 async def _prm(request):
@@ -889,7 +892,7 @@ app.add_middleware(AuthMiddleware)
 
 
 if __name__ == "__main__":
-    # force: FastMCP() already installed a root handler at import time.
+    # force: MCPServer() already installed a root handler at import time.
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s", force=True)
     logging.getLogger("mcp").setLevel(logging.WARNING)
     # requests/urllib3 would log request URLs, which carry note ids.

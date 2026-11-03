@@ -517,7 +517,7 @@ def test_http_flat_legacy_and_bad_arguments(client, signed, monkeypatch, caplog)
 def test_tool_list_is_unchanged():
     import asyncio
 
-    tools = {t.name: t.model_dump(mode="json", exclude_none=True)
+    tools = {t.name: t.model_dump(mode="json", by_alias=True, exclude_none=True)
              for t in asyncio.run(jum.mcp.list_tools())}
     with open(os.path.join(os.path.dirname(__file__), "tools_golden.json"), encoding="utf-8") as f:
         assert tools == json.load(f)["user"]
@@ -773,7 +773,7 @@ def _as(sub, email):
 def _tool_text(name, arguments=None):
     import asyncio
 
-    return asyncio.run(jum.mcp.call_tool(name, arguments or {}))[0][0].text
+    return asyncio.run(jum.mcp.call_tool(name, arguments or {})).content[0].text
 
 
 def test_a_new_account_gets_the_info_json_joppy_writes(monkeypatch, no_shared_session):

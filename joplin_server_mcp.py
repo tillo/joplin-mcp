@@ -16,6 +16,7 @@ Environment variables:
 """
 
 import dataclasses
+import importlib.metadata
 import json
 import os
 import re
@@ -26,7 +27,7 @@ from typing import Optional, List, Any
 from datetime import datetime
 from contextlib import contextmanager
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from joppy.server_api import ServerApi, LockError
@@ -151,7 +152,9 @@ _api: Optional[ServerApi] = None
 # Initialize MCP Server
 # =============================================================================
 
-mcp = FastMCP("joplin_server_mcp")
+# serverInfo.version stays what mcp 1.x reported: the installed SDK version
+# (2.x would send "" unless told).
+mcp = MCPServer("joplin_server_mcp", version=importlib.metadata.version("mcp"))
 
 # =============================================================================
 # API Connection Helper

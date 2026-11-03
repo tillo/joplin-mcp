@@ -1,6 +1,8 @@
 # The image's Python dependencies (Dockerfile) AND the `test` job's (.gitlab-ci.yml).
-# mcp is capped <2.0.0: 2.0.0 dropped mcp.server.fastmcp (see the Dockerfile).
-mcp>=1.0.0,<2.0.0
+# mcp is pinned: 2.x renamed FastMCP to MCPServer (mcp.server.mcpserver) and moved the
+# streamable-HTTP settings to streamable_http_app(). A major bump can move the API again, so
+# take it through a Renovate MR and the test job, never a floating range (see the Dockerfile).
+mcp==2.3.0
 joppy>=1.0.0
 pydantic>=2.0.0
 httpx>=0.24.0

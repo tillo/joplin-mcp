@@ -16,7 +16,7 @@ import threading
 import uuid
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from conftest import EMAIL, FOLDER, folder_text, jsm, note_text, tag_text
 
@@ -25,8 +25,7 @@ GOLDEN = os.path.join(os.path.dirname(__file__), "tools_golden.json")
 
 def call(name, **params):
     args = {} if name == "joplin_ping" else {"params": params}
-    content, _ = asyncio.run(jsm.mcp.call_tool(name, args))
-    return content[0].text
+    return asyncio.run(jsm.mcp.call_tool(name, args)).content[0].text
 
 
 def call_json(name, **params):
@@ -41,7 +40,7 @@ def _meta(text):
 # ── the tool surface ─────────────────────────────────────────────────────────
 
 def test_tool_list_is_unchanged():
-    tools = {t.name: t.model_dump(mode="json", exclude_none=True)
+    tools = {t.name: t.model_dump(mode="json", by_alias=True, exclude_none=True)
              for t in asyncio.run(jsm.mcp.list_tools())}
     with open(GOLDEN, encoding="utf-8") as f:
         assert tools == json.load(f)["server"]
@@ -122,9 +121,9 @@ def test_every_input_takes_a_json_text_and_one_stray_closing_brace(model):
 
 def test_a_json_text_reaches_the_tool(server_mode):
     nid = server_mode.add_note(1, "Plan", "body")
-    content, _ = asyncio.run(jsm.mcp.call_tool("joplin_get_note",
-                                               {"params": json.dumps({"note_id": nid}) + "}"}))
-    assert content[0].text.startswith("# Plan\n")
+    result = asyncio.run(jsm.mcp.call_tool("joplin_get_note",
+                                           {"params": json.dumps({"note_id": nid}) + "}"}))
+    assert result.content[0].text.startswith("# Plan\n")
 
 
 def test_unknown_arguments_are_refused():
