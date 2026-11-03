@@ -1,0 +1,10 @@
+# The image's Python dependencies (Dockerfile) AND the `test` job's (.gitlab-ci.yml).
+# mcp is capped <2.0.0: 2.0.0 dropped mcp.server.fastmcp (see the Dockerfile).
+mcp>=1.0.0,<2.0.0
+joppy>=1.0.0
+pydantic>=2.0.0
+httpx>=0.24.0
+PyJWT[crypto]>=2.10
+cryptography
+uvicorn
+requests

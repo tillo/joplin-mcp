@@ -63,15 +63,9 @@ COPY joplin_user_mcp.py /app/joplin_user_mcp.py
 # directly. The floating >=1.0.0 bound let a scheduled CACHEBUST_DAY rebuild
 # pick up 2.0.0 and ship a joplin-mcp image whose child process cannot start.
 # PyJWT, cryptography, uvicorn and requests are for joplin_user_mcp.py.
-RUN pip install --no-cache-dir \
-    "mcp>=1.0.0,<2.0.0" \
-    "joppy>=1.0.0" \
-    "pydantic>=2.0.0" \
-    "httpx>=0.24.0" \
-    "PyJWT[crypto]>=2.10" \
-    "cryptography" \
-    "uvicorn" \
-    "requests"
+# requirements.txt is the one list: CI's `test` job installs the same file.
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /app/start.sh
