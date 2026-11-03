@@ -15,10 +15,12 @@ Environment variables:
     - JOPLIN_SERVER_PASSWORD: User password
 """
 
+import dataclasses
 import json
 import os
 import re
 import sys
+import uuid
 from enum import Enum
 from typing import Optional, List, Any
 from datetime import datetime
@@ -84,48 +86,52 @@ dt.TagData.__init__ = _patched_tag_init
 
 # Fix NoteData serialization to output 0/1 for boolean fields instead of False/True
 _original_note_serialize = dt.NoteData.serialize
+
+# Boolean fields that need 0/1 instead of False/True
+_NOTE_BOOL_FIELDS = frozenset({'is_todo', 'is_conflict', 'encryption_applied', 'is_shared'})
+# Filled in on the note itself when unset, as joppy does: add_note reads the new id back.
+_NOTE_DEFAULTS = {
+    "id": lambda: uuid.uuid4().hex,
+    "markup_language": lambda: dt.MarkupLanguage.MARKDOWN,
+    "source_application": lambda: "joppy",
+}
+# Fields always written, as this text.
+_NOTE_FIELD_TEXT = {
+    "type_": lambda _value: int(dt.ItemType.NOTE),
+    "markup_language": int,
+    "updated_time": lambda value: "" if value is None else value,
+}
+
+
+def _note_field_value(note, name):
+    value = getattr(note, name)
+    if value is None and name in _NOTE_DEFAULTS:
+        value = _NOTE_DEFAULTS[name]()
+        setattr(note, name, value)
+    return value
+
+
+def _note_metadata_line(note, name):
+    """One "name: value" line of a serialized note, or None when the field is not written."""
+    if name in ("title", "body"):
+        return None  # written first, as the note's head
+    value = _note_field_value(note, name)
+    if name in _NOTE_FIELD_TEXT:
+        return f"{name}: {_NOTE_FIELD_TEXT[name](value)}"
+    if value is None:
+        return None
+    if name in _NOTE_BOOL_FIELDS:
+        value = 1 if value else 0
+    return f"{name}: {value}"
+
+
 def _patched_note_serialize(self):
     """Patched serialize that converts booleans to 0/1."""
-    from dataclasses import fields as dc_fields
-
-    # Boolean fields that need 0/1 instead of False/True
-    bool_fields = {'is_todo', 'is_conflict', 'encryption_applied', 'is_shared'}
-
     lines = ["" if self.title is None else self.title, ""]
     if self.body is not None:
         lines.extend([self.body, ""])
-
-    for field_ in dc_fields(self):
-        if field_.name == "id":
-            if self.id is None:
-                import uuid
-                self.id = uuid.uuid4().hex
-            lines.append(f"{field_.name}: {self.id}")
-        elif field_.name == "markup_language":
-            if self.markup_language is None:
-                self.markup_language = dt.MarkupLanguage.MARKDOWN
-            lines.append(f"{field_.name}: {int(self.markup_language)}")
-        elif field_.name == "source_application":
-            if self.source_application is None:
-                self.source_application = "joppy"
-            lines.append(f"{field_.name}: {self.source_application}")
-        elif field_.name in ("title", "body"):
-            pass  # handled before
-        elif field_.name == "type_":
-            lines.append(f"{field_.name}: {int(dt.ItemType.NOTE)}")
-        elif field_.name == "updated_time":
-            value_raw = getattr(self, field_.name)
-            value = "" if value_raw is None else value_raw
-            lines.append(f"{field_.name}: {value}")
-        elif field_.name in bool_fields:
-            value_raw = getattr(self, field_.name)
-            if value_raw is not None:
-                # Convert bool to 0/1
-                lines.append(f"{field_.name}: {1 if value_raw else 0}")
-        else:
-            value_raw = getattr(self, field_.name)
-            if value_raw is not None:
-                lines.append(f"{field_.name}: {value_raw}")
+    metadata = (_note_metadata_line(self, field_.name) for field_ in dataclasses.fields(self))
+    lines.extend(line for line in metadata if line is not None)
     return "\n".join(lines)
 
 dt.NoteData.serialize = _patched_note_serialize
