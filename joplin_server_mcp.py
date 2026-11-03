@@ -234,12 +234,12 @@ class ResponseFormat(str, Enum):
     JSON = "json"
 
 
-class CreateNoteInput(BaseModel):
+# Every tool's input model also takes its arguments as one JSON text.
+class _ToolInput(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _parse_if_string(cls, v):
         if isinstance(v, str):
-            import json
             try:
                 return json.loads(v)
             except json.JSONDecodeError as e:
@@ -250,6 +250,8 @@ class CreateNoteInput(BaseModel):
                 raise
         return v
 
+
+class CreateNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(..., description="The note title", min_length=1)
@@ -258,22 +260,7 @@ class CreateNoteInput(BaseModel):
     is_todo: Optional[bool] = Field(default=False, description="Whether this note is a todo item")
 
 
-class UpdateNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class UpdateNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -291,215 +278,65 @@ class UpdateNoteInput(BaseModel):
     )
 
 
-class GetNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class GetNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to retrieve")
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class DeleteNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class DeleteNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to delete")
 
 
-class ListNotesInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ListNotesInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     folder_id: Optional[str] = Field(default=None, description="Filter notes by notebook ID")
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class SearchNotesInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class SearchNotesInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     query: str = Field(..., description="Search query (searches in title and body)", min_length=1)
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class CreateFolderInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class CreateFolderInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(..., description="The notebook title", min_length=1)
     parent_id: Optional[str] = Field(default=None, description="Parent notebook ID")
 
 
-class ListFoldersInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ListFoldersInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class DeleteFolderInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class DeleteFolderInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     folder_id: str = Field(..., description="The ID of the notebook to delete")
 
 
-class CreateTagInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class CreateTagInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(..., description="The tag name", min_length=1)
 
 
-class ListTagsInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ListTagsInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class AddTagToNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class AddTagToNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     tag_id: str = Field(..., description="The tag ID")
@@ -1148,20 +985,7 @@ class PatchOperation(BaseModel):
     )
 
 
-class AppendToSectionInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                if "Extra data" in str(e) and v.endswith("}"):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class AppendToSectionInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -1188,20 +1012,7 @@ class AppendToSectionInput(BaseModel):
     )
 
 
-class ReplaceSectionInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                if "Extra data" in str(e) and v.endswith("}"):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ReplaceSectionInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -1213,20 +1024,7 @@ class ReplaceSectionInput(BaseModel):
     heading_level: int = Field(default=2, ge=1, le=6)
 
 
-class ApplyPatchInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                if "Extra data" in str(e) and v.endswith("}"):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ApplyPatchInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
