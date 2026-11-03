@@ -23,7 +23,8 @@
         "patch"
       ],
       "matchPackageNames": [
-        "__none__"
+        "__none__",
+        "fast-xml-parser"
       ],
       "automerge": true,
       "labels": [
@@ -38,7 +39,8 @@
         "digest"
       ],
       "matchPackageNames": [
-        "__none__"
+        "__none__",
+        "fast-xml-parser"
       ],
       "automerge": true,
       "labels": [
