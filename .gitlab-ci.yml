@@ -79,6 +79,19 @@ buildkit:
       - build.log
     expire_in: 7 days
 
+# Runs tests/ on every pipeline, MRs included: a job without `rules:` is absent
+# from MR pipelines. Same requirements.txt as the image, on the image's base.
+test:
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:slim
+  stage: build
+  tags:
+    - mdapi
+  rules:
+    - when: on_success
+  script:
+    - pip install --no-cache-dir -r requirements.txt pytest
+    - python -m pytest -q tests
+
 # CVE scan via the shared job in mdapi/ci-templates (scan.yml):
 # pinned grype + sha256, registry auth, and notifies only for
 # HIGH/CRITICAL that actually have a fix.

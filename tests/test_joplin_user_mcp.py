@@ -1,6 +1,6 @@
 """Tests for joplin_user_mcp: no network, no Joplin, no Keycloak.
 
-    pip install pytest "PyJWT[crypto]" cryptography uvicorn requests httpx "mcp>=1.0.0,<2.0.0" joppy
+    pip install -r requirements.txt pytest
     python -m pytest tests/
 """
 
