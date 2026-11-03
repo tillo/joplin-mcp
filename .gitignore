@@ -14,3 +14,7 @@ id_ecdsa*
 *.tsig
 .netrc
 __pycache__/
+.venv/
+.metrics/
+target/
+.coverage
