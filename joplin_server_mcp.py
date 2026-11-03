@@ -15,10 +15,12 @@ Environment variables:
     - JOPLIN_SERVER_PASSWORD: User password
 """
 
+import dataclasses
 import json
 import os
 import re
 import sys
+import uuid
 from enum import Enum
 from typing import Optional, List, Any
 from datetime import datetime
@@ -84,48 +86,52 @@ dt.TagData.__init__ = _patched_tag_init
 
 # Fix NoteData serialization to output 0/1 for boolean fields instead of False/True
 _original_note_serialize = dt.NoteData.serialize
+
+# Boolean fields that need 0/1 instead of False/True
+_NOTE_BOOL_FIELDS = frozenset({'is_todo', 'is_conflict', 'encryption_applied', 'is_shared'})
+# Filled in on the note itself when unset, as joppy does: add_note reads the new id back.
+_NOTE_DEFAULTS = {
+    "id": lambda: uuid.uuid4().hex,
+    "markup_language": lambda: dt.MarkupLanguage.MARKDOWN,
+    "source_application": lambda: "joppy",
+}
+# Fields always written, as this text.
+_NOTE_FIELD_TEXT = {
+    "type_": lambda _value: int(dt.ItemType.NOTE),
+    "markup_language": int,
+    "updated_time": lambda value: "" if value is None else value,
+}
+
+
+def _note_field_value(note, name):
+    value = getattr(note, name)
+    if value is None and name in _NOTE_DEFAULTS:
+        value = _NOTE_DEFAULTS[name]()
+        setattr(note, name, value)
+    return value
+
+
+def _note_metadata_line(note, name):
+    """One "name: value" line of a serialized note, or None when the field is not written."""
+    if name in ("title", "body"):
+        return None  # written first, as the note's head
+    value = _note_field_value(note, name)
+    if name in _NOTE_FIELD_TEXT:
+        return f"{name}: {_NOTE_FIELD_TEXT[name](value)}"
+    if value is None:
+        return None
+    if name in _NOTE_BOOL_FIELDS:
+        value = 1 if value else 0
+    return f"{name}: {value}"
+
+
 def _patched_note_serialize(self):
     """Patched serialize that converts booleans to 0/1."""
-    from dataclasses import fields as dc_fields
-
-    # Boolean fields that need 0/1 instead of False/True
-    bool_fields = {'is_todo', 'is_conflict', 'encryption_applied', 'is_shared'}
-
     lines = ["" if self.title is None else self.title, ""]
     if self.body is not None:
         lines.extend([self.body, ""])
-
-    for field_ in dc_fields(self):
-        if field_.name == "id":
-            if self.id is None:
-                import uuid
-                self.id = uuid.uuid4().hex
-            lines.append(f"{field_.name}: {self.id}")
-        elif field_.name == "markup_language":
-            if self.markup_language is None:
-                self.markup_language = dt.MarkupLanguage.MARKDOWN
-            lines.append(f"{field_.name}: {int(self.markup_language)}")
-        elif field_.name == "source_application":
-            if self.source_application is None:
-                self.source_application = "joppy"
-            lines.append(f"{field_.name}: {self.source_application}")
-        elif field_.name in ("title", "body"):
-            pass  # handled before
-        elif field_.name == "type_":
-            lines.append(f"{field_.name}: {int(dt.ItemType.NOTE)}")
-        elif field_.name == "updated_time":
-            value_raw = getattr(self, field_.name)
-            value = "" if value_raw is None else value_raw
-            lines.append(f"{field_.name}: {value}")
-        elif field_.name in bool_fields:
-            value_raw = getattr(self, field_.name)
-            if value_raw is not None:
-                # Convert bool to 0/1
-                lines.append(f"{field_.name}: {1 if value_raw else 0}")
-        else:
-            value_raw = getattr(self, field_.name)
-            if value_raw is not None:
-                lines.append(f"{field_.name}: {value_raw}")
+    metadata = (_note_metadata_line(self, field_.name) for field_ in dataclasses.fields(self))
+    lines.extend(line for line in metadata if line is not None)
     return "\n".join(lines)
 
 dt.NoteData.serialize = _patched_note_serialize
@@ -228,12 +234,12 @@ class ResponseFormat(str, Enum):
     JSON = "json"
 
 
-class CreateNoteInput(BaseModel):
+# Every tool's input model also takes its arguments as one JSON text.
+class _ToolInput(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _parse_if_string(cls, v):
         if isinstance(v, str):
-            import json
             try:
                 return json.loads(v)
             except json.JSONDecodeError as e:
@@ -244,6 +250,8 @@ class CreateNoteInput(BaseModel):
                 raise
         return v
 
+
+class CreateNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(..., description="The note title", min_length=1)
@@ -252,22 +260,7 @@ class CreateNoteInput(BaseModel):
     is_todo: Optional[bool] = Field(default=False, description="Whether this note is a todo item")
 
 
-class UpdateNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class UpdateNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -285,215 +278,65 @@ class UpdateNoteInput(BaseModel):
     )
 
 
-class GetNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class GetNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to retrieve")
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class DeleteNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class DeleteNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to delete")
 
 
-class ListNotesInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ListNotesInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     folder_id: Optional[str] = Field(default=None, description="Filter notes by notebook ID")
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class SearchNotesInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class SearchNotesInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     query: str = Field(..., description="Search query (searches in title and body)", min_length=1)
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class CreateFolderInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class CreateFolderInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(..., description="The notebook title", min_length=1)
     parent_id: Optional[str] = Field(default=None, description="Parent notebook ID")
 
 
-class ListFoldersInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ListFoldersInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class DeleteFolderInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class DeleteFolderInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     folder_id: str = Field(..., description="The ID of the notebook to delete")
 
 
-class CreateTagInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class CreateTagInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(..., description="The tag name", min_length=1)
 
 
-class ListTagsInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ListTagsInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
 
 
-class AddTagToNoteInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                # supergateway may append a trailing '}' from the outer wrapper;
-                # strip it and retry
-                if 'Extra data' in str(e) and v.endswith('}'):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class AddTagToNoteInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     tag_id: str = Field(..., description="The tag ID")
@@ -619,8 +462,6 @@ def _validate_body_replacement(api, note_id, new_body, force):
     both checks entirely.
     """
     if force:
-        return None
-    if not isinstance(new_body, str):
         return None
 
     # Guard 1: unexpanded shell-substitution markers near the start of the body
@@ -748,6 +589,36 @@ def joplin_delete_note(params: DeleteNoteInput) -> str:
         return json.dumps({"error": str(e)}, indent=2)
 
 
+def _todo_prefix(note: dt.NoteData) -> str:
+    if not note.is_todo:
+        return ""
+    return "[x] " if note.todo_completed else "[ ] "
+
+
+def _note_list_lines(notes: List[dt.NoteData]) -> List[str]:
+    lines = []
+    for note in notes:
+        lines.append(f"- {_todo_prefix(note)}**{note.title or 'Untitled'}**")
+        lines.append(f"  - ID: `{note.id}`")
+        lines.append(f"  - Updated: {_format_timestamp(note.updated_time)}")
+    return lines
+
+
+def _note_matches(note: dt.NoteData, query_lower: str) -> bool:
+    """Case-insensitive substring match on the title or the body."""
+    title_match = note.title and query_lower in note.title.lower()
+    body_match = note.body and query_lower in note.body.lower()
+    return bool(title_match or body_match)
+
+
+def _search_result_lines(notes: List[dt.NoteData]) -> List[str]:
+    lines = []
+    for note in notes:
+        lines.append(f"- **{note.title or 'Untitled'}**")
+        lines.append(f"  - ID: `{note.id}`")
+    return lines
+
+
 @mcp.tool(
     name="joplin_list_notes",
     annotations={
@@ -780,18 +651,7 @@ def joplin_list_notes(params: ListNotesInput) -> str:
 
             # Markdown format
             lines = ["# Notes", ""]
-
-            if not all_notes:
-                lines.append("*No notes found*")
-            else:
-                for note in all_notes:
-                    prefix = ""
-                    if note.is_todo:
-                        prefix = "[x] " if note.todo_completed else "[ ] "
-                    lines.append(f"- {prefix}**{note.title or 'Untitled'}**")
-                    lines.append(f"  - ID: `{note.id}`")
-                    lines.append(f"  - Updated: {_format_timestamp(note.updated_time)}")
-
+            lines.extend(_note_list_lines(all_notes) or ["*No notes found*"])
             lines.append(f"\n*Total: {len(all_notes)} notes*")
             return "\n".join(lines)
     except Exception as e:
@@ -823,12 +683,7 @@ def joplin_search_notes(params: SearchNotesInput) -> str:
             query_lower = params.query.lower()
 
             # Client-side search
-            matches = []
-            for note in all_notes:
-                title_match = note.title and query_lower in note.title.lower()
-                body_match = note.body and query_lower in note.body.lower()
-                if title_match or body_match:
-                    matches.append(note)
+            matches = [note for note in all_notes if _note_matches(note, query_lower)]
 
             if params.response_format == ResponseFormat.JSON:
                 return json.dumps({
@@ -839,14 +694,7 @@ def joplin_search_notes(params: SearchNotesInput) -> str:
 
             # Markdown format
             lines = [f"# Search Results for '{params.query}'", ""]
-
-            if not matches:
-                lines.append("*No results found*")
-            else:
-                for note in matches:
-                    lines.append(f"- **{note.title or 'Untitled'}**")
-                    lines.append(f"  - ID: `{note.id}`")
-
+            lines.extend(_search_result_lines(matches) or ["*No results found*"])
             lines.append(f"\n*Found {len(matches)} matching notes*")
             return "\n".join(lines)
     except Exception as e:
@@ -1135,20 +983,7 @@ class PatchOperation(BaseModel):
     )
 
 
-class AppendToSectionInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                if "Extra data" in str(e) and v.endswith("}"):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class AppendToSectionInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -1175,20 +1010,7 @@ class AppendToSectionInput(BaseModel):
     )
 
 
-class ReplaceSectionInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                if "Extra data" in str(e) and v.endswith("}"):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ReplaceSectionInput(_ToolInput):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -1200,20 +1022,7 @@ class ReplaceSectionInput(BaseModel):
     heading_level: int = Field(default=2, ge=1, le=6)
 
 
-class ApplyPatchInput(BaseModel):
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_if_string(cls, v):
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError as e:
-                if "Extra data" in str(e) and v.endswith("}"):
-                    return json.loads(v[: e.pos])
-                raise
-        return v
-
+class ApplyPatchInput(_ToolInput):
     model_config = ConfigDict(extra="forbid")
 
     note_id: str = Field(..., description="The ID of the note to update")
@@ -1260,7 +1069,7 @@ def _section_end_line(body: str, heading_line_idx: int, level: int) -> int:
     A section ends at the next Markdown heading of equal-or-higher level (i.e.
     fewer-or-equal '#' characters), or at end-of-file.
     """
-    lines = body.splitlines(keepends=False)
+    lines = body.splitlines()
     for i in range(heading_line_idx + 1, len(lines)):
         line = lines[i]
         # Match any heading of level 1..`level`
@@ -1269,6 +1078,72 @@ def _section_end_line(body: str, heading_line_idx: int, level: int) -> int:
             if line.startswith(p):
                 return i
     return len(lines)
+
+
+def _with_section_appended(lines, head_idx, end_idx, content, position):
+    """The note's lines with `content` added at the top or bottom of its section."""
+    insert_block = content.rstrip("\n").split("\n")
+    if position == "top":
+        # Skip a single blank line immediately after the heading if present,
+        # then insert; ensures a blank line separates heading from inserted block.
+        ins = head_idx + 1
+        if ins < len(lines) and lines[ins].strip() == "":
+            ins += 1
+        return lines[:ins] + insert_block + [""] + lines[ins:]
+    # bottom: trim trailing blank lines inside the section, then append, then re-pad.
+    # The heading line itself is never blank, so the trim stops at it at the latest.
+    e = end_idx
+    while lines[e - 1].strip() == "":
+        e -= 1
+    return lines[:e] + [""] + insert_block + [""] + lines[end_idx:]
+
+
+def _with_section_replaced(lines, head_idx, end_idx, new_content):
+    """The note's lines with everything under the heading replaced by `new_content`."""
+    new_block = new_content.rstrip("\n").split("\n") if new_content else []
+    # Pad: blank line after heading, blank line before next section (if not EOF)
+    new_section = [lines[head_idx], ""] + new_block
+    if end_idx < len(lines):
+        new_section += [""]
+    return lines[:head_idx] + new_section + lines[end_idx:]
+
+
+def _keep_trailing_newline(old: str, new: str) -> str:
+    """Preserve original trailing newline state."""
+    if old.endswith("\n") and not new.endswith("\n"):
+        return new + "\n"
+    return new
+
+
+def _edit_section(params, edit, message: str, **result) -> str:
+    """Rewrite one section of a note: edit(lines, heading index, end index) -> new lines.
+
+    Returns the JSON envelope of joplin_append_to_section / joplin_replace_section.
+    """
+    try:
+        with _with_lock() as api:
+            note = api.get_note(params.note_id)
+            body = note.body or ""
+            try:
+                head_idx = _find_heading_line(body, params.section_heading, params.heading_level)
+            except LookupError as e:
+                return str(e)
+            end_idx = _section_end_line(body, head_idx, params.heading_level)
+            new_lines = edit(body.splitlines(keepends=False), head_idx, end_idx)
+            new_body = _keep_trailing_newline(body, "\n".join(new_lines))
+
+            api.modify_note(params.note_id, body=new_body)
+            return json.dumps({
+                "success": True,
+                "note_id": params.note_id,
+                "section_heading": params.section_heading,
+                **result,
+                "body_chars_before": len(body),
+                "body_chars_after": len(new_body),
+                "message": message,
+            }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
 
 
 @mcp.tool(
@@ -1289,54 +1164,11 @@ def joplin_append_to_section(params: AppendToSectionInput) -> str:
     Returns:
         JSON with success / error envelope.
     """
-    try:
-        with _with_lock() as api:
-            note = api.get_note(params.note_id)
-            body = note.body or ""
-            try:
-                head_idx = _find_heading_line(body, params.section_heading, params.heading_level)
-            except LookupError as e:
-                return str(e)
-            end_idx = _section_end_line(body, head_idx, params.heading_level)
+    def edit(lines, head_idx, end_idx):
+        return _with_section_appended(lines, head_idx, end_idx, params.content, params.position)
 
-            lines = body.splitlines(keepends=False)
-            insert_text = params.content
-            if not insert_text.endswith("\n"):
-                insert_text += "\n"
-            insert_block = insert_text.rstrip("\n").split("\n")
-
-            if params.position == "top":
-                # Skip a single blank line immediately after the heading if present,
-                # then insert; ensures a blank line separates heading from inserted block.
-                ins = head_idx + 1
-                if ins < len(lines) and lines[ins].strip() == "":
-                    ins += 1
-                new_lines = lines[:ins] + insert_block + [""] + lines[ins:]
-            else:  # bottom
-                # Trim trailing blank lines inside the section, then append, then re-pad.
-                e = end_idx
-                while e > head_idx + 1 and lines[e - 1].strip() == "":
-                    e -= 1
-                new_lines = lines[:e] + [""] + insert_block + [""] + lines[end_idx:]
-
-            new_body = "\n".join(new_lines)
-            # Preserve original trailing newline state
-            if body.endswith("\n") and not new_body.endswith("\n"):
-                new_body += "\n"
-
-            api.modify_note(params.note_id, body=new_body)
-            return json.dumps({
-                "success": True,
-                "note_id": params.note_id,
-                "section_heading": params.section_heading,
-                "position": params.position,
-                "appended_chars": len(params.content),
-                "body_chars_before": len(body),
-                "body_chars_after": len(new_body),
-                "message": "Section appended successfully",
-            }, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e)}, indent=2)
+    return _edit_section(params, edit, "Section appended successfully",
+                         position=params.position, appended_chars=len(params.content))
 
 
 @mcp.tool(
@@ -1355,39 +1187,10 @@ def joplin_replace_section(params: ReplaceSectionInput) -> str:
     Returns:
         JSON with success / error envelope.
     """
-    try:
-        with _with_lock() as api:
-            note = api.get_note(params.note_id)
-            body = note.body or ""
-            try:
-                head_idx = _find_heading_line(body, params.section_heading, params.heading_level)
-            except LookupError as e:
-                return str(e)
-            end_idx = _section_end_line(body, head_idx, params.heading_level)
+    def edit(lines, head_idx, end_idx):
+        return _with_section_replaced(lines, head_idx, end_idx, params.new_content)
 
-            lines = body.splitlines(keepends=False)
-            new_block = params.new_content.rstrip("\n").split("\n") if params.new_content else []
-            # Pad: blank line after heading, blank line before next section (if not EOF)
-            new_section = [lines[head_idx], ""] + new_block
-            if end_idx < len(lines):
-                new_section += [""]
-
-            new_lines = lines[:head_idx] + new_section + lines[end_idx:]
-            new_body = "\n".join(new_lines)
-            if body.endswith("\n") and not new_body.endswith("\n"):
-                new_body += "\n"
-
-            api.modify_note(params.note_id, body=new_body)
-            return json.dumps({
-                "success": True,
-                "note_id": params.note_id,
-                "section_heading": params.section_heading,
-                "body_chars_before": len(body),
-                "body_chars_after": len(new_body),
-                "message": "Section replaced successfully",
-            }, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e)}, indent=2)
+    return _edit_section(params, edit, "Section replaced successfully")
 
 
 @mcp.tool(

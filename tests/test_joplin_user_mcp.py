@@ -8,7 +8,6 @@ import contextlib
 import json
 import logging
 import os
-import sys
 import time
 import types
 
@@ -17,7 +16,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 os.environ.setdefault("STORE_KEY", Fernet.generate_key().decode())
 os.environ.setdefault("ALLOWED_GROUPS", "ChatNotes")
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import jwt  # noqa: E402
 import pytest  # noqa: E402
@@ -511,3 +509,358 @@ def test_http_flat_legacy_and_bad_arguments(client, signed, monkeypatch, caplog)
     assert len(got) == 3
     assert "tool=joplin_get_note" in caplog.text and "outcome=invalid_arguments" in caplog.text
     assert "secret title" not in caplog.text
+
+
+# ── the tool surface, pinned ─────────────────────────────────────────────────
+
+def test_tool_list_is_unchanged():
+    import asyncio
+
+    tools = {t.name: t.model_dump(mode="json", exclude_none=True)
+             for t in asyncio.run(jum.mcp.list_tools())}
+    with open(os.path.join(os.path.dirname(__file__), "tools_golden.json"), encoding="utf-8") as f:
+        assert tools == json.load(f)["user"]
+
+
+def test_arguments_drop_what_does_not_parse():
+    gn, ap = _model("joplin_get_note"), _model("joplin_apply_patch")
+    assert jum._arguments(gn, {"params": "{not json", "note_id": "n1"}) == {"note_id": "n1"}
+    assert jum._arguments(gn, {"params": "[1]", "note_id": "n1"}) == {"note_id": "n1"}
+    # A non-text field sent as text that is no JSON list or object goes to the model as sent.
+    assert jum._arguments(ap, {"note_id": "n1", "operations": "not json"})["operations"] == "not json"
+    assert jum._arguments(ap, {"note_id": "n1", "operations": '"x"'})["operations"] == '"x"'
+    # An empty required text field is still given (and the model refuses it).
+    assert jum._arguments(gn, {"note_id": ""}) == {"note_id": ""}
+
+
+def test_outcome_of_a_tool_text():
+    assert jum._outcome_of('{"error": "x"}') == "tool_error"
+    assert jum._outcome_of('{"success": true}') == "ok"
+    assert jum._outcome_of("{not json") == "ok"
+
+
+def test_a_single_group_claim_is_a_group(signed):
+    assert jum._validate_incoming(signed(groups="ChatNotes"))["sub"] == A[0]
+    with pytest.raises(jum.AuthError):
+        jum._validate_incoming(signed(groups="ChatMail"))
+
+
+def test_a_tool_outside_a_request_has_no_identity():
+    import asyncio
+
+    with pytest.raises(jum.NoToken):
+        asyncio.run(jum.joplin_connect())
+
+
+def test_the_store_needs_its_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(jum, "_store", None)
+    monkeypatch.setattr(jum, "STORE_KEY", "")
+    with pytest.raises(RuntimeError, match="STORE_KEY is not set"):
+        jum._get_store()
+    monkeypatch.setattr(jum, "STORE_KEY", os.environ["STORE_KEY"])
+    monkeypatch.setattr(jum, "STORE_PATH", str(tmp_path / "opened.sqlite3"))
+    store = jum._get_store()
+    assert jum._get_store() is store and (tmp_path / "opened.sqlite3").exists()
+
+
+def test_another_sync_format_is_refused(monkeypatch, no_shared_session):
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    http = FakeHttp(email=A[1], info={"version": 2})
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    with pytest.raises(jum.Refused) as e:
+        jum._user_api(*A)
+    assert e.value.code == "joplin_unsupported"
+    assert jum._get_store().get("creds", A[0]) is None
+    assert ("post", f"{jum.JOPLIN_URL}/applications/app/delete") in http.calls
+
+
+def test_a_refusal_stands_when_joplin_cannot_remove_the_application(monkeypatch, no_shared_session, caplog):
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    http = FakeHttp(email="b@example.test")
+    real_post = http.post
+
+    def post(url, **kw):
+        if url.endswith("/delete"):
+            raise OSError("connection reset")
+        return real_post(url, **kw)
+
+    http.post = post
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    with pytest.raises(jum.Refused) as e:
+        jum._user_api(*A)
+    assert e.value.code == "joplin_account_mismatch"
+    assert "could not remove a refused application" in caplog.text
+    assert jum._get_store().get("creds", A[0]) is None
+
+
+def test_an_old_session_or_a_new_email_opens_a_new_session(monkeypatch, no_shared_session):
+    made = []
+    monkeypatch.setattr(jum, "_new_http", lambda: made.append(FakeHttp(email=A[1])) or made[-1])
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    first = jum._user_api(*A)
+    assert jum._user_api(A[0], A[1].upper()) is first  # the email compares case-blind
+    api, at, email = jum._apis[A[0]]
+    jum._apis[A[0]] = (api, at - jum.SESSION_MAX_AGE - 1, email)
+    second = jum._user_api(*A)
+    assert second is not first and len(made) == 2
+
+
+def test_an_expired_link_is_replaced(monkeypatch):
+    polled = _application_auth(monkeypatch, 403)
+    with pytest.raises(jum.UserFacing) as first:
+        jum._user_api(*A)
+    monkeypatch.setattr(jum, "PENDING_TTL", -1.0)
+    with pytest.raises(jum.UserFacing) as second:
+        jum._user_api(*A)
+    assert "not connected to your Joplin notes yet" in second.value.message
+    assert second.value.extra["connect_url"] != first.value.extra["connect_url"]
+    assert polled == []
+
+
+@pytest.mark.parametrize("login,message", [
+    (403, "Disconnected: Chat forgot the credential and removed it in Joplin."),
+    (500, "Chat forgot the credential. Joplin did not confirm its removal: delete the "
+          "'vchat.mdapi.ch' entry on https://notes.mdapi.ch/applications yourself."),
+])
+def test_disconnect_without_a_live_session(monkeypatch, no_shared_session, login, message):
+    monkeypatch.setattr(jum, "_new_http", lambda: FakeHttp(login_status=login))
+    jum._get_store().put("creds", A[0], {"app_id": "app-a", "password": "pw", "email": A[1]})
+    jum._get_store().put("pending", A[0], {"aid": "x"})
+    assert jum._disconnect(*A) == {"connected": False, "message": message}
+    assert jum._get_store().get("creds", A[0]) is None
+    assert jum._get_store().get("pending", A[0]) is None
+
+
+def test_disconnect_when_joplin_shows_no_form(monkeypatch, no_shared_session):
+    http = FakeHttp(email=A[1])
+    real_get = http.get
+    http.get = lambda url, **kw: Resp(200, text="<p>signed out</p>") if url.endswith("/applications") else real_get(url, **kw)
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    jum._get_store().put("creds", A[0], {"app_id": "app-a", "password": "pw", "email": A[1]})
+    jum._user_api(*A)
+    assert "did not confirm its removal" in jum._disconnect(*A)["message"]
+    assert not any(c[1].endswith("/delete") for c in http.calls)
+
+
+def test_disconnect_when_not_connected():
+    jum._get_store().put("pending", A[0], {"aid": "x"})
+    assert jum._disconnect(*A) == {"connected": False, "message": "Chat was not connected to your Joplin notes."}
+    assert jum._get_store().get("pending", A[0]) is None
+
+
+# ── one person's Joplin, end to end (the loopback Joplin in conftest.py) ─────
+
+@pytest.fixture
+def own_joplin(joplin, monkeypatch):
+    monkeypatch.setattr(jum, "JOPLIN_URL", joplin.url)
+    joplin.account_email = A[1]
+    return joplin
+
+
+def test_requests_need_a_live_sync_lock(own_joplin, no_shared_session):
+    import datetime
+
+    from joppy.server_api import LockError
+
+    own_joplin.apps["app0"] = "app-password"
+    nid = own_joplin.add_note(1, "Plan", "x")
+    path = f"/api/items/root:/{nid}.md:/content"
+    api = jum.UserApi("app0", "app-password")
+    with pytest.raises(LockError, match="No sync lock"):
+        api.get(path)
+    api.current_sync_lock = api._add_lock()
+    assert api.get(path).text.startswith("Plan\n")
+    posts = own_joplin.requests.count(("POST", "/api/locks"))
+    api.get(path)
+    assert own_joplin.requests.count(("POST", "/api/locks")) == posts  # a fresh lock is kept
+    api.current_sync_lock.updatedTime -= datetime.timedelta(seconds=61)
+    api.get(path)
+    assert own_joplin.requests.count(("POST", "/api/locks")) == posts + 1  # refreshed past a minute
+    api.current_sync_lock.updatedTime -= datetime.timedelta(minutes=4)
+    with pytest.raises(LockError, match="expired"):
+        api.get(path)
+
+
+def test_connect_use_and_disconnect_over_http(client, signed, own_joplin, caplog, no_shared_session):
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    tok = signed()
+
+    def call(name, arguments=None):
+        r = _rpc(client, tok, name, arguments)
+        assert r.status_code == 200, r.text
+        return r.json()["result"]["content"][0]["text"]
+
+    link = json.loads(call("joplin_list_notes"))
+    assert link["error"] == "joplin_not_connected" and "outcome=joplin_not_connected" in caplog.text
+    aid = link["connect_url"].split("/")[4]
+    assert json.loads(call("joplin_connect"))["error"] == "joplin_not_connected"
+    own_joplin.authorise(aid)
+
+    created = json.loads(call("joplin_create_note", {"title": "Plan", "parent_id": "f" * 32, "body": "x"}))
+    assert created["success"] is True
+    assert own_joplin.body(created["note_id"]).startswith("Plan\n\nx\n\n")
+    assert call("joplin_list_notes").startswith("# Notes\n\n- **Plan**")
+    assert not own_joplin.locks
+    missing = json.loads(call("joplin_get_note", {"note_id": "0" * 32}))
+    assert list(missing) == ["error"] and "outcome=tool_error" in caplog.text
+    # As it is today: joppy's sync_lock skips its delete when the body raises, so the
+    # lock is left on the server until it expires.
+    assert len(own_joplin.locks) == 1
+    assert json.loads(call("joplin_connect")) == {
+        "connected": True, "joplin": jum.JOPLIN_PUBLIC_URL, "account": A[1],
+        "message": "Chat is connected to your own Joplin notes."}
+    assert own_joplin.logins == 1
+
+    assert json.loads(call("joplin_disconnect"))["message"].startswith("Disconnected:")
+    assert own_joplin.apps == {}
+    assert json.loads(call("joplin_get_note", {"note_id": "0" * 32}))["error"] == "joplin_not_connected"
+    assert "Plan" not in caplog.text and A[1] not in caplog.text
+
+
+def test_an_unreachable_joplin_is_an_internal_error(client, signed, monkeypatch, caplog):
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    monkeypatch.setattr(jum, "JOPLIN_URL", "http://127.0.0.1:9")
+    jum._get_store().put("pending", A[0], {"aid": "x"})
+    tok = signed()
+    for name in ("joplin_list_tags", "joplin_connect"):
+        r = _rpc(client, tok, name)
+        assert json.loads(r.json()["result"]["content"][0]["text"]) == {
+            "error": "internal_error", "detail": "ConnectionError"}
+    assert caplog.text.count("outcome=error_ConnectionError") == 2
+
+
+# ── clocks, log lines and text encoding ──────────────────────────────────────
+
+def _freeze(monkeypatch, wall=None, mono=None):
+    """Replace the clock joplin_user_mcp reads, and only its own: other modules keep time."""
+    stub = types.SimpleNamespace(**{n: getattr(time, n) for n in dir(time) if not n.startswith("_")})
+    if wall is not None:
+        stub.time = wall
+    if mono is not None:
+        stub.monotonic = mono
+    monkeypatch.setattr(jum, "time", stub)
+
+
+@contextlib.contextmanager
+def _as(sub, email):
+    token = jum._current.set((sub, email, "who"))
+    try:
+        yield
+    finally:
+        jum._current.reset(token)
+
+
+def _tool_text(name, arguments=None):
+    import asyncio
+
+    return asyncio.run(jum.mcp.call_tool(name, arguments or {}))[0][0].text
+
+
+def test_a_new_account_gets_the_info_json_joppy_writes(monkeypatch, no_shared_session):
+    http = FakeHttp()
+    real_get = http.get
+    missing = ("info.json", "version.txt")
+    http.get = lambda url, **kw: Resp(404, {"error": "nf"}) if any(m in url for m in missing) else real_get(url, **kw)
+    written = []
+    http.put = lambda url, **kw: written.append(kw.get("json")) or Resp(200, {})
+    monkeypatch.setattr(jum, "_new_http", lambda: http)
+    _freeze(monkeypatch, wall=lambda: 1_800_000_000.25)
+    jum.UserApi("app", "pw")
+    now = 1_800_000_000_250
+    assert written == [{"version": 3, "e2ee": {"value": False, "updatedTime": now},
+                        "activeMasterKeyId": {"value": False, "updatedTime": now},
+                        "masterKeys": [], "ppk": {}, "appMinVersion": "3.0.0"}]
+
+
+def test_a_session_ends_at_exactly_its_max_age(monkeypatch, no_shared_session):
+    made = []
+    monkeypatch.setattr(jum, "_new_http", lambda: made.append(FakeHttp(email=A[1])) or made[-1])
+    jum._get_store().put("creds", A[0], {"app_id": "app", "password": "pw", "email": A[1]})
+    clock = [1000.0]
+    _freeze(monkeypatch, mono=lambda: clock[0])
+    first = jum._user_api(*A)
+    clock[0] = 1000.0 + jum.SESSION_MAX_AGE - 1
+    assert jum._user_api(*A) is first
+    clock[0] = 1000.0 + jum.SESSION_MAX_AGE
+    assert jum._user_api(*A) is not first and len(made) == 2
+
+
+def test_a_link_expires_at_exactly_its_ttl(monkeypatch):
+    polled = _application_auth(monkeypatch, 403)
+    clock = [5000.0]
+    _freeze(monkeypatch, wall=lambda: clock[0])
+    with pytest.raises(jum.UserFacing) as first:
+        jum._user_api(*A)
+    clock[0] = 5000.0 + jum.PENDING_TTL - 1
+    with pytest.raises(jum.UserFacing) as waiting:
+        jum._user_api(*A)
+    assert len(polled) == 1 and waiting.value.extra["connect_url"] == first.value.extra["connect_url"]
+    clock[0] = 5000.0 + jum.PENDING_TTL
+    with pytest.raises(jum.UserFacing) as fresh:
+        jum._user_api(*A)
+    assert len(polled) == 1 and fresh.value.extra["connect_url"] != first.value.extra["connect_url"]
+
+
+def test_a_lock_is_kept_until_its_refresh_interval_has_passed(own_joplin, no_shared_session, monkeypatch):
+    import datetime
+
+    fixed = datetime.datetime.now(datetime.timezone.utc)
+
+    class Frozen(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    monkeypatch.setattr(jum, "datetime", types.SimpleNamespace(
+        datetime=Frozen, timezone=datetime.timezone, timedelta=datetime.timedelta))
+    own_joplin.apps["app0"] = "app-password"
+    nid = own_joplin.add_note(1, "Plan", "x")
+    api = jum.UserApi("app0", "app-password")
+    api.current_sync_lock = api._add_lock()
+    api.current_sync_lock.updatedTime = fixed.replace(tzinfo=None) - api.lock_auto_refresh_interval
+    posts = own_joplin.requests.count(("POST", "/api/locks"))
+    api.get(f"/api/items/root:/{nid}.md:/content")
+    assert own_joplin.requests.count(("POST", "/api/locks")) == posts  # due, not yet past due
+
+
+def test_the_log_line_carries_the_call_time(monkeypatch, caplog):
+    import asyncio
+
+    caplog.set_level(logging.INFO, logger="joplin_user_mcp")
+    monkeypatch.setattr(jum, "_user_api", lambda sub, email: object())
+    ticks = iter([10.0, 10.25, 20.0, 20.5])
+    _freeze(monkeypatch, mono=lambda: next(ticks))
+    with _as(*A):
+        _tool_text("joplin_connect")
+        assert asyncio.run(jum._run("joplin_probe", lambda: "done", {})) == "done"
+    assert "tool=joplin_connect user=who outcome=ok ms=250" in caplog.text
+    assert "tool=joplin_probe user=who outcome=ok ms=500" in caplog.text
+
+
+def test_non_ascii_text_goes_out_as_written(monkeypatch):
+    zoe = ("sub-z", "zoë@example.test")
+    _application_auth(monkeypatch, 403)
+    with _as(*zoe):
+        texts = [_tool_text("joplin_list_notes"), _tool_text("joplin_connect")]  # new link, then waiting
+    for text in texts:
+        assert json.loads(text)["error"] == "joplin_not_connected"
+        assert "as zoë@example.test if it asks" in text and "\\u" not in text
+    monkeypatch.setattr(jum, "_user_api", lambda sub, email: object())
+    with _as(*zoe):
+        assert '"account": "zoë@example.test"' in _tool_text("joplin_connect")
+        bad = _tool_text("joplin_apply_patch", {"note_id": "n1", "operations": [{"search": "a", "rëplace": "b"}]})
+    assert bad == '{"error": "invalid_arguments", "detail": "operations.0.rëplace: Extra inputs are not permitted"}'
+
+
+def test_the_allowed_hosts_follow_the_resource_url(monkeypatch):
+    monkeypatch.setattr(jum, "RESOURCE_URL", "https://notes-mcp.example.test/mcp")
+    settings = jum._transport_security()
+    assert settings.enable_dns_rebinding_protection is True
+    assert settings.allowed_hosts == ["127.0.0.1:*", "[::1]:*", "localhost:*",
+                                      "notes-mcp.example.test", "notes-mcp.example.test:*"]
+    assert settings.allowed_origins == []
+
+
+def test_a_description_keeps_everything_outside_the_args_block():
+    doc = "  Lead line\n\nArgs:\n    params: X\n        more\nAfter."
+    assert jum._describe(doc) == "Lead line\n\nAfter."
