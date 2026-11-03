@@ -5,6 +5,7 @@
 """
 
 import contextlib
+import importlib.metadata
 import json
 import logging
 import os
@@ -520,6 +521,25 @@ def test_tool_list_is_unchanged():
              for t in asyncio.run(jum.mcp.list_tools())}
     with open(os.path.join(os.path.dirname(__file__), "tools_golden.json"), encoding="utf-8") as f:
         assert tools == json.load(f)["user"]
+
+
+def test_open_webui_sees_the_same_server_and_tools(client, signed):
+    # Open WebUI hands each tool's name, description and schemas to the model verbatim, so an
+    # SDK upgrade must not reshape what goes out on the wire (mcp 1.x -> 2.x).
+    headers = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json",
+               "Authorization": f"Bearer {signed()}"}
+    init = client.post("/mcp", headers=headers, json={
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                   "clientInfo": {"name": "open-webui", "version": "0"}}})
+    assert init.status_code == 200, init.text
+    assert init.json()["result"]["protocolVersion"] == "2025-06-18"
+    assert init.json()["result"]["serverInfo"] == {"name": "joplin", "version": importlib.metadata.version("mcp")}
+    assert "tools" in init.json()["result"]["capabilities"]
+    listed = client.post("/mcp", headers=headers, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert listed.status_code == 200, listed.text
+    with open(os.path.join(os.path.dirname(__file__), "tools_golden.json"), encoding="utf-8") as f:
+        assert {t["name"]: t for t in listed.json()["result"]["tools"]} == json.load(f)["user"]
 
 
 def test_arguments_drop_what_does_not_parse():

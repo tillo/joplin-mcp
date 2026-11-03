@@ -6,8 +6,13 @@ loopback Joplin Server in conftest.py (real joppy, real requests, made-up notes)
 """
 
 import asyncio
+import importlib.metadata
 import json
 import os
+import queue
+import subprocess
+import sys
+import threading
 import uuid
 
 import pytest
@@ -40,6 +45,54 @@ def test_tool_list_is_unchanged():
              for t in asyncio.run(jsm.mcp.list_tools())}
     with open(GOLDEN, encoding="utf-8") as f:
         assert tools == json.load(f)["server"]
+
+
+def _stdio(*requests):
+    """joplin_server_mcp as the image runs it: supergateway starts `python joplin_server_mcp.py`
+    and speaks JSON-RPC to it, one line each way. Returns the reply to each request, in order.
+    Nothing here reaches Joplin: initialize and tools/list never open the account."""
+    env = {**os.environ, "JOPLIN_SERVER_URL": "http://127.0.0.1:9",
+           "JOPLIN_SERVER_EMAIL": EMAIL, "JOPLIN_SERVER_PASSWORD": "not-a-real-password"}
+    proc = subprocess.Popen([sys.executable, jsm.__file__], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, env=env, text=True)
+    lines = queue.Queue()
+    threading.Thread(target=lambda: [lines.put(line) for line in proc.stdout], daemon=True).start()
+    try:
+        replies = []
+        for req in requests:
+            proc.stdin.write(json.dumps(req) + "\n")
+            proc.stdin.flush()
+            if "id" in req:
+                replies.append(_reply(lines, req["id"]))
+        return replies
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def _reply(lines, id_):
+    while True:
+        msg = json.loads(lines.get(timeout=30))  # queue.Empty: the server never answered
+        if msg.get("id") == id_:
+            return msg
+
+
+def test_supergateway_sees_the_same_server_and_tools():
+    # Open WebUI hands each tool's name, description and schemas to the model verbatim, so an
+    # SDK upgrade must not reshape what goes out on the wire (mcp 1.x -> 2.x).
+    init, listed = _stdio(
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                    "clientInfo": {"name": "supergateway", "version": "3"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    )
+    assert init["result"]["protocolVersion"] == "2025-06-18"
+    assert init["result"]["serverInfo"] == {"name": "joplin_server_mcp",
+                                            "version": importlib.metadata.version("mcp")}
+    assert "tools" in init["result"]["capabilities"]
+    with open(GOLDEN, encoding="utf-8") as f:
+        assert {t["name"]: t for t in listed["result"]["tools"]} == json.load(f)["server"]
 
 
 INPUTS = [jsm.CreateNoteInput, jsm.UpdateNoteInput, jsm.GetNoteInput, jsm.DeleteNoteInput,
