@@ -504,6 +504,14 @@ def test_append_to_the_last_section_keeps_the_trailing_newline(server_mode):
     assert body == "## A\n- x\n\n- y\n\n## B\n- z"
 
 
+def test_indented_lines_stay_inside_their_section(server_mode):
+    body = "## A\n- x\n  - nested\n    code\n## B\n- z"
+    _, out, _ = _edit(server_mode, "joplin_append_to_section", body=body, section_heading="A", content="- y")
+    assert out == "## A\n- x\n  - nested\n    code\n\n- y\n\n## B\n- z"
+    _, out, _ = _edit(server_mode, "joplin_replace_section", body=body, section_heading="A", new_content="- y")
+    assert out == "## A\n\n- y\n\n## B\n- z"
+
+
 def test_append_level_one_section_runs_to_the_next_level_one(server_mode):
     _, body, _ = _edit(server_mode, "joplin_append_to_section", section_heading="Backlog",
                        heading_level=1, content="- end")
