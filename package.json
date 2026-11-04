@@ -9,7 +9,7 @@
   },
   "overrides": {
     "tar": "7.5.22",
-    "terminal-kit": "2.11.7",
+    "terminal-kit": "3.1.4",
     "string-kit": "0.19.5",
     "adm-zip": "0.6.1",
     "fast-xml-parser": "5.12.0",
