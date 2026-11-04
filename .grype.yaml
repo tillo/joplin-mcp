@@ -623,15 +623,28 @@ ignore:
     package:
       name: libcurl4t64
       type: deb
-
-  # --- added by curator on 2026-11-03 (UTC) ---
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-84243
     package:
       name: libc-bin
       type: deb
-  # High — upstream won't-fix
   - vulnerability: CVE-2026-84243
     package:
       name: libc6
+      type: deb
+
+  # --- added by curator on 2026-11-04 (UTC) ---
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-119373
+    package:
+      name: libsqlite3-0
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-119374
+    package:
+      name: libsqlite3-0
+      type: deb
+  # High — upstream won't-fix
+  - vulnerability: CVE-2026-119379
+    package:
+      name: libsqlite3-0
       type: deb
