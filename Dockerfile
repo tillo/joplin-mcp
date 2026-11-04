@@ -33,7 +33,13 @@ WORKDIR /app
 # pacote, picomatch, http-cache-semantics, …) is cascade-removed because the
 # `nodejs` package that stays depends only on libnode115 + node-corepack — that
 # removes the second, unrelated source of npm CVEs in the scan.
-COPY package.json /app/package.json
+#
+# .npmrc sets engine-strict: package.json `engines.node` states the node this
+# base ships (Debian nodejs 20), and `npm install` fails on any package, the
+# overrides included, whose engines range excludes it. Otherwise a pin like
+# nanoid 6 (node >=22) installs with only a warning and works until a patch
+# uses a 22-only API.
+COPY package.json .npmrc /app/
 RUN apt-get update && apt-get install -y --no-install-recommends make g++ \
     && npm install \
     && ln -s /app/node_modules/.bin/joplin /usr/local/bin/joplin \
