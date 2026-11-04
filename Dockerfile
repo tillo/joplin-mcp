@@ -41,6 +41,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends make g++ \
     && apt-get purge -y npm make g++ && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* /root/.npm
 
+# The joplin CLI must actually work on this image's node before the image may
+# be pushed: a note round trip through a filesystem sync target. It runs after
+# the npm/toolchain purge, so it tests the runtime as shipped.
+COPY smoke-joplin-cli.sh /app/smoke-joplin-cli.sh
+RUN /app/smoke-joplin-cli.sh
+
 # Vendored fork of erickt23/joplin-server-mcp (upstream pinned at
 # d463635437fcda55b212706a9e81233f237e1b25). Carries:
 #   - UTF-8 response-encoding fix for joppy (was patch_mcp.py:UTF8_FIX)
