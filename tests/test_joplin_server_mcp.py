@@ -6,12 +6,17 @@ loopback Joplin Server in conftest.py (real joppy, real requests, made-up notes)
 """
 
 import asyncio
+import importlib.metadata
 import json
 import os
+import queue
+import subprocess
+import sys
+import threading
 import uuid
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from conftest import EMAIL, FOLDER, folder_text, jsm, note_text, tag_text
 
@@ -20,8 +25,7 @@ GOLDEN = os.path.join(os.path.dirname(__file__), "tools_golden.json")
 
 def call(name, **params):
     args = {} if name == "joplin_ping" else {"params": params}
-    content, _ = asyncio.run(jsm.mcp.call_tool(name, args))
-    return content[0].text
+    return asyncio.run(jsm.mcp.call_tool(name, args)).content[0].text
 
 
 def call_json(name, **params):
@@ -36,10 +40,58 @@ def _meta(text):
 # ── the tool surface ─────────────────────────────────────────────────────────
 
 def test_tool_list_is_unchanged():
-    tools = {t.name: t.model_dump(mode="json", exclude_none=True)
+    tools = {t.name: t.model_dump(mode="json", by_alias=True, exclude_none=True)
              for t in asyncio.run(jsm.mcp.list_tools())}
     with open(GOLDEN, encoding="utf-8") as f:
         assert tools == json.load(f)["server"]
+
+
+def _stdio(*requests):
+    """joplin_server_mcp as the image runs it: supergateway starts `python joplin_server_mcp.py`
+    and speaks JSON-RPC to it, one line each way. Returns the reply to each request, in order.
+    Nothing here reaches Joplin: initialize and tools/list never open the account."""
+    env = {**os.environ, "JOPLIN_SERVER_URL": "http://127.0.0.1:9",
+           "JOPLIN_SERVER_EMAIL": EMAIL, "JOPLIN_SERVER_PASSWORD": "not-a-real-password"}
+    proc = subprocess.Popen([sys.executable, jsm.__file__], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, env=env, text=True)
+    lines = queue.Queue()
+    threading.Thread(target=lambda: [lines.put(line) for line in proc.stdout], daemon=True).start()
+    try:
+        replies = []
+        for req in requests:
+            proc.stdin.write(json.dumps(req) + "\n")
+            proc.stdin.flush()
+            if "id" in req:
+                replies.append(_reply(lines, req["id"]))
+        return replies
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def _reply(lines, id_):
+    while True:
+        msg = json.loads(lines.get(timeout=30))  # queue.Empty: the server never answered
+        if msg.get("id") == id_:
+            return msg
+
+
+def test_supergateway_sees_the_same_server_and_tools():
+    # Open WebUI hands each tool's name, description and schemas to the model verbatim, so an
+    # SDK upgrade must not reshape what goes out on the wire (mcp 1.x -> 2.x).
+    init, listed = _stdio(
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                    "clientInfo": {"name": "supergateway", "version": "3"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    )
+    assert init["result"]["protocolVersion"] == "2025-06-18"
+    assert init["result"]["serverInfo"] == {"name": "joplin_server_mcp",
+                                            "version": importlib.metadata.version("mcp")}
+    assert "tools" in init["result"]["capabilities"]
+    with open(GOLDEN, encoding="utf-8") as f:
+        assert {t["name"]: t for t in listed["result"]["tools"]} == json.load(f)["server"]
 
 
 INPUTS = [jsm.CreateNoteInput, jsm.UpdateNoteInput, jsm.GetNoteInput, jsm.DeleteNoteInput,
@@ -69,9 +121,9 @@ def test_every_input_takes_a_json_text_and_one_stray_closing_brace(model):
 
 def test_a_json_text_reaches_the_tool(server_mode):
     nid = server_mode.add_note(1, "Plan", "body")
-    content, _ = asyncio.run(jsm.mcp.call_tool("joplin_get_note",
-                                               {"params": json.dumps({"note_id": nid}) + "}"}))
-    assert content[0].text.startswith("# Plan\n")
+    result = asyncio.run(jsm.mcp.call_tool("joplin_get_note",
+                                           {"params": json.dumps({"note_id": nid}) + "}"}))
+    assert result.content[0].text.startswith("# Plan\n")
 
 
 def test_unknown_arguments_are_refused():
@@ -375,7 +427,11 @@ def test_create_folder(server_mode):
     assert "parent_id" not in server_mode.items[f"{fid}.md"]
     sub = call_json("joplin_create_folder", title="Sub", parent_id=fid)["folder_id"]
     assert f"parent_id: {fid}" in server_mode.items[f"{sub}.md"]
-    assert "404" not in call("joplin_create_folder", title="Top", parent_id="")
+    # An empty parent_id means a top-level notebook. Checked by structure, not by searching the
+    # reply for "404": the reply carries a random 32-hex folder_id, which holds "404" ~0.7% of runs.
+    top = call_json("joplin_create_folder", title="Top", parent_id="")
+    assert top["success"] is True
+    assert "parent_id" not in server_mode.items[f"{top['folder_id']}.md"]
 
 
 def test_create_folder_error(server_mode, monkeypatch):
