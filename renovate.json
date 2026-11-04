@@ -5,6 +5,7 @@
     "local>mdapi/renovate-config:image-repo"
   ],
   "automerge": false,
+  "constraintsFiltering": "strict",
   "prBodyNotes": [
     "---",
     "#### Automerge policy for `{{{depName}}}`",
@@ -29,6 +30,13 @@
         "linkify-it"
       ],
       "allowedVersions": "<6"
+    },
+    {
+      "description": "engines.node is NOT a dependency: it states the node the base image ships (Debian nodejs, python:slim), and .npmrc engine-strict makes the image build fail on any package whose engines exclude it. constraintsFiltering=strict (top level) reads it so no update MR offers a version that needs a newer node (nanoid 6 needs >=22, infra-7ae4x). Change it only together with the base image's node.",
+      "matchDepTypes": [
+        "engines"
+      ],
+      "enabled": false
     },
     {
       "description": "GRADUATED — minor+patch (promoted by the graduation tick / Windmill f/desk/renovate_graduate). The baseline here is MR-only, so this list is the whole minor+patch automerge. Must sit above GRADUATED — major. `__none__` is a sentinel, not a package: it keeps an emptied list inert instead of matching everything.",
