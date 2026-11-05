@@ -723,9 +723,8 @@ def test_connect_use_and_disconnect_over_http(client, signed, own_joplin, caplog
     assert not own_joplin.locks
     missing = json.loads(call("joplin_get_note", {"note_id": "0" * 32}))
     assert list(missing) == ["error"] and "outcome=tool_error" in caplog.text
-    # As it is today: joppy's sync_lock skips its delete when the body raises, so the
-    # lock is left on the server until it expires.
-    assert len(own_joplin.locks) == 1
+    # A failing call releases its sync lock too (joppy's own sync_lock would leave it).
+    assert not own_joplin.locks
     assert json.loads(call("joplin_connect")) == {
         "connected": True, "joplin": jum.JOPLIN_PUBLIC_URL, "account": A[1],
         "message": "Chat is connected to your own Joplin notes."}
