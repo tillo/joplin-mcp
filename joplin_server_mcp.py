@@ -182,7 +182,13 @@ def _with_lock():
     """Context manager to acquire sync lock for operations."""
     api = _get_api()
     with api.sync_lock():
-        yield api
+        try:
+            yield api
+        except BaseException:
+            # joppy's sync_lock has no finally: when the body raises, its delete is
+            # skipped and the lock blocks every other client until it expires.
+            api._delete_own_lock()
+            raise
 
 
 def _format_timestamp(dt_obj: Optional[datetime]) -> str:

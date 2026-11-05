@@ -244,9 +244,9 @@ def test_get_note_ignores_fields_joppy_does_not_know_and_nan_times(server_mode):
 def test_get_missing_note(server_mode):
     out = call_json("joplin_get_note", note_id="0" * 32)
     assert list(out) == ["error"] and "404" in out["error"]
-    # As it is today: joppy's sync_lock skips its delete when the body raises, so the
-    # lock stays on the server until it expires.
-    assert len(server_mode.locks) == 1
+    # joppy's sync_lock skips its delete when the body raises; _with_lock releases it anyway,
+    # so a failing call never leaves other clients' syncs refused until the lock expires.
+    assert not server_mode.locks
 
 
 def test_update_note_needs_a_field(server_mode):
