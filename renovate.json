@@ -46,7 +46,8 @@
       ],
       "matchPackageNames": [
         "__none__",
-        "fast-xml-parser"
+        "fast-xml-parser",
+        "image-size"
       ],
       "automerge": true,
       "labels": [
@@ -62,7 +63,8 @@
       ],
       "matchPackageNames": [
         "__none__",
-        "fast-xml-parser"
+        "fast-xml-parser",
+        "image-size"
       ],
       "automerge": true,
       "labels": [
