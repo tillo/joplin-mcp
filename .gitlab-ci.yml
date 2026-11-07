@@ -1,5 +1,8 @@
 include:
   - project: mdapi/ci-templates
+    file: /buildkit-before-script.yml
+    ref: main
+  - project: mdapi/ci-templates
     file: /notify.yml
     ref: main
   - project: mdapi/ci-templates
@@ -44,19 +47,7 @@ buildkit:
     - when: on_success
       variables:
         IMAGE_TAGS: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
-  before_script:
-    - mkdir -p ~/.docker
-    - |
-      echo "{
-        \"auths\": {
-          \"${CI_REGISTRY}\": {
-            \"auth\": \"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"
-          },
-          \"$(echo -n $CI_DEPENDENCY_PROXY_SERVER | awk -F[:] '{print $1}')\": {
-            \"auth\": \"$(printf "%s:%s" ${CI_DEPENDENCY_PROXY_USER} "${CI_DEPENDENCY_PROXY_PASSWORD}" | base64 | tr -d '\n')\"
-          }
-        }
-      }" > ~/.docker/config.json
+  extends: .buildkit-auth-setup
   script:
     - |
       buildctl-daemonless.sh build \
