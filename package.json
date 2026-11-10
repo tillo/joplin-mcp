@@ -25,6 +25,14 @@
     "nanoid": "5.1.16",
     "sharp": "0.35.5",
     "image-size": "2.1.0",
-    "linkify-it": "5.0.2"
+    "linkify-it": "5.0.2",
+    "follow-redirects": "1.16.3",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@modelcontextprotocol/server": "2.4.0",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/node": "2.1.2",
+    "supergateway": {
+      "zod": "^4.6.6"
+    }
   }
 }

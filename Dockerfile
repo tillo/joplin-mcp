@@ -84,6 +84,18 @@ COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
+# MCP smoke (fails the build): bridge the server exactly as start.sh does and
+# speak to it as a 2025-11-25 client — initialize, then tools/list must return
+# tools. The overrides above float supergateway's own MCP SDK packages and lift
+# its zod to 4 (infra-ik4p.26); a version that breaks the handshake builds and
+# starts fine yet serves nothing. No Joplin credentials are needed: the server
+# only logs in on the first tool call.
+COPY smoke.mjs /app/smoke.mjs
+RUN supergateway --stdio "python /app/joplin_server_mcp.py" \
+      --outputTransport streamableHttp --port 9099 >/tmp/smoke-gateway.log 2>&1 & gw=$!; \
+    node /app/smoke.mjs 9099; rc=$?; kill "$gw"; \
+    [ "$rc" = 0 ] || tail -20 /tmp/smoke-gateway.log; rm -f /tmp/smoke-gateway.log; exit "$rc"
+
 EXPOSE 8080
 
 # nginx (8080) validates MCP_BEARER_TOKEN from Authorization header or ?token= query param,
