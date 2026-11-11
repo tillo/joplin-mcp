@@ -11,7 +11,7 @@
     "node": "^20.19.0"
   },
   "overrides": {
-    "tar": "7.5.22",
+    "tar": "7.5.23",
     "terminal-kit": "3.1.4",
     "string-kit": "0.19.5",
     "adm-zip": "0.6.1",
