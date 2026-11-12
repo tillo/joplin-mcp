@@ -13,6 +13,7 @@ import queue
 import subprocess
 import sys
 import threading
+import types
 import uuid
 
 import pytest
@@ -149,6 +150,44 @@ def test_one_login_serves_every_call(server_mode):
     call("joplin_list_folders")
     assert server_mode.logins == 1
     assert not server_mode.locks  # each call released its sync lock
+
+
+def test_the_session_travels_in_the_header_joplin_3_7_5_requires(server_mode):
+    # 3.7.5 refuses the web login's cookie on /api/ (403); the session id is sent as X-API-AUTH.
+    server_mode.add_note(1, "Alpha", "x")
+    assert "Alpha" in call("joplin_list_notes")
+    assert ("POST", "/login") not in server_mode.requests
+    assert server_mode.requests.count(("POST", "/api/sessions")) == 1
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    """joplin_server_mcp's monotonic clock, moved by hand."""
+    now = [1000.0]
+    monkeypatch.setattr(jsm, "time", types.SimpleNamespace(monotonic=lambda: now[0]))
+    return now
+
+
+def test_an_expired_session_logs_in_once_more(server_mode, clock):
+    call("joplin_list_folders")
+    server_mode.expire_sessions()  # 12 h later
+    clock[0] += jsm.RELOGIN_MIN_AGE + 1
+    assert "error" not in call("joplin_list_folders")
+    assert server_mode.logins == 2
+
+
+def test_a_403_on_a_young_session_stands(server_mode, clock):
+    call("joplin_list_folders")
+    server_mode.expire_sessions()
+    clock[0] += jsm.RELOGIN_MIN_AGE
+    assert "403" in call_json("joplin_list_folders")["error"]
+    assert server_mode.logins == 1  # no login storm: Joplin rate-limits logins per IP
+
+
+def test_wrong_credentials_are_reported(server_mode, monkeypatch):
+    monkeypatch.setattr(jsm, "JOPLIN_SERVER_PASSWORD", "wrong")
+    assert "403" in call_json("joplin_list_folders")["error"]
+    assert jsm._api is None and server_mode.logins == 0
 
 
 def test_ping_connected_and_authenticated(server_mode):

@@ -59,8 +59,11 @@ def tag_text(id_, title):
 
 
 class FakeJoplin:
-    """Joplin Server as joppy and joplin_user_mcp's UserApi talk to it: items by path, sync
-    locks, a login, a ping, and the per-user applications flow."""
+    """Joplin Server 3.7.5 as joppy and joplin_user_mcp's UserApi talk to it: items by path, sync
+    locks, a login, a ping, and the per-user applications flow.
+
+    Like 3.7.5, the /api/ routes take a session only from the X-API-AUTH header: the web
+    login's sessionId cookie alone is refused with 403."""
 
     def __init__(self):
         self.items = {"info.json": json.dumps({"version": 3, "e2ee": {"value": False}})}
@@ -69,6 +72,8 @@ class FakeJoplin:
         self.fail = {}  # (METHOD, item name) -> status
         self.requests = []  # (METHOD, path)
         self.logins = 0
+        self.sessions = set()  # live session ids
+        self.accounts = {EMAIL: PASSWORD}  # Joplin accounts, beside the applications
         self.apps = {}  # app id -> password, once authorised
         self.pending = {}  # application_auth id -> app id, once the person pressed Authorise
         self.account_email = "a@example.test"
@@ -101,8 +106,25 @@ class FakeJoplin:
 
     # ── routes ──────────────────────────────────────────────────────────────
 
-    def route(self, method, path, query, payload):
+    def expire_sessions(self):
+        """Every session dies, as Joplin's do 12 h after creation."""
+        self.sessions.clear()
+
+    def _new_session(self):
+        self.logins += 1
+        sid = f"sess{self.logins}"
+        self.sessions.add(sid)
+        return sid
+
+    def _authorised(self, path, headers):
+        if not path.startswith(("/api/items", "/api/locks", "/api/users")):
+            return True
+        return headers.get("X-API-AUTH") in self.sessions
+
+    def route(self, method, path, query, payload, headers=None):
         self.requests.append((method, path))
+        if not self._authorised(path, headers or {}):
+            return 403, {"error": "Forbidden"}
         m = re.fullmatch(r"/api/items/root:/(.*):/content", path)
         if m:
             return self._content(method, m[1], payload)
@@ -147,16 +169,19 @@ class FakeJoplin:
 
     def _account(self, method, path, payload):
         if path == "/login" and method == "POST":
-            self.logins += 1
-            return 200, {}
+            # The web login: a cookie and a redirect to the home page.
+            return 302, ("text/plain", ""), {"Location": "/home",
+                                             "Set-Cookie": f"sessionId={self._new_session()}; Path=/"}
+        if path == "/home":
+            return 200, ("text/html", "<html></html>")
         if path == "/api/ping":
             return self.ping_status, {"status": "ok", "message": "Joplin Server is running"}
         if path == "/api/sessions" and method == "POST":
             j = json.loads(payload)
-            if self.apps.get(j["email"]) != j["password"]:
+            known = {**self.accounts, **self.apps}
+            if known.get(j["email"]) != j["password"]:
                 return 403, {"error": "Invalid username or password"}
-            self.logins += 1
-            return 200, {"id": f"sess{self.logins}", "user_id": "u1"}
+            return 200, {"id": self._new_session(), "user_id": "u1"}
         if path == "/api/users/u1":
             return 200, {"id": "u1", "email": self.account_email}
         m = re.fullmatch(r"/api/application_auth/(.+)", path)
@@ -190,13 +215,16 @@ class _Handler(BaseHTTPRequestHandler):
         size = int(self.headers.get("Content-Length") or 0)
         payload = self.rfile.read(size) if size else b""
         with self.fake.lock:
-            status, out = self.fake.route(self.command, parts.path, parts.query, payload)
+            status, out, *extra = self.fake.route(self.command, parts.path, parts.query, payload,
+                                                  self.headers)
         ctype, text = out if isinstance(out, tuple) else ("application/json", json.dumps(out))
         data = text.encode("utf-8")
         self.send_response(status)
         # No charset, as Joplin Server sends item content.
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
+        for name, value in (extra[0] if extra else {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(data)
 

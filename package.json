@@ -31,6 +31,11 @@
     "@modelcontextprotocol/server": "2.4.0",
     "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/node": "2.1.2",
+    "@joplin/lib": "3.7.1",
+    "@joplin/renderer": "3.7.1",
+    "@joplin/utils": "3.7.1",
+    "@joplin/htmlpack": "3.7.1",
+    "@joplin/onenote-converter": "3.7.1",
     "supergateway": {
       "zod": "^4.6.6"
     }

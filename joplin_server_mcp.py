@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+import time
 import uuid
 from enum import Enum
 from typing import Optional, List, Any
@@ -30,6 +31,7 @@ from contextlib import contextmanager
 from mcp.server.mcpserver import MCPServer
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
+import requests
 from joppy.server_api import ServerApi, LockError
 
 # --- patch: pin joppy responses to utf-8 -------------------------------------
@@ -145,6 +147,46 @@ JOPLIN_SERVER_URL = os.getenv("JOPLIN_SERVER_URL", "http://localhost:22300")
 JOPLIN_SERVER_EMAIL = os.getenv("JOPLIN_SERVER_EMAIL", "")
 JOPLIN_SERVER_PASSWORD = os.getenv("JOPLIN_SERVER_PASSWORD", "")
 
+# Joplin sessions expire 12 h after creation, whatever the activity.
+# A 403 on an older session triggers one fresh login. Bounded, because Joplin rate-limits
+# logins per client IP.
+RELOGIN_MIN_AGE = 60.0
+HTTP_TIMEOUT = 20.0
+
+
+class SessionApi(ServerApi):
+    """joppy's ServerApi, its session sent as the X-API-AUTH header.
+
+    joppy 1.0.4 logs in through the web form (POST /login) and relies on the sessionId cookie,
+    which Joplin Server 3.7.5 refuses on /api/ (403). This logs in through POST /api/sessions,
+    sends the id as X-API-AUTH, and logs in again once Joplin has expired the session."""
+
+    def __init__(self, user: str, password: str, url: str):
+        self._password = password
+        self.logged_in_at = 0.0
+        super().__init__(user=user, password=password, url=url)
+
+    def _login(self) -> None:
+        session = _joppy_server_api.SESSION
+        r = session.post(f"{self.url}/api/sessions",
+                         json={"email": self.user, "password": self._password},
+                         timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        session.headers["X-API-AUTH"] = r.json()["id"]
+        self.logged_in_at = time.monotonic()
+
+    def _request(self, method, path, *args, **kwargs):
+        if path == "/login":  # joppy's own login, from ServerApi.__init__
+            return self._login()
+        try:
+            return super()._request(method, path, *args, **kwargs)
+        except requests.exceptions.HTTPError as err:
+            if err.response.status_code != 403 or time.monotonic() - self.logged_in_at <= RELOGIN_MIN_AGE:
+                raise
+        self._login()
+        return super()._request(method, path, *args, **kwargs)
+
+
 # Global API instance (lazy initialized)
 _api: Optional[ServerApi] = None
 
@@ -169,7 +211,7 @@ def _get_api() -> ServerApi:
                 "JOPLIN_SERVER_EMAIL and JOPLIN_SERVER_PASSWORD must be set. "
                 "These are your Joplin Server login credentials."
             )
-        _api = ServerApi(
+        _api = SessionApi(
             user=JOPLIN_SERVER_EMAIL,
             password=JOPLIN_SERVER_PASSWORD,
             url=JOPLIN_SERVER_URL
@@ -931,7 +973,6 @@ def joplin_ping() -> str:
     Returns:
         JSON with connection status
     """
-    import requests
     try:
         # Direct ping without going through joppy (avoids lock requirement)
         response = requests.get(f"{JOPLIN_SERVER_URL}/api/ping", timeout=10)

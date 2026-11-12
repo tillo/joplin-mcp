@@ -18,6 +18,17 @@
   ],
   "packageRules": [
     {
+      "description": "@joplin/* STAY ON 3.7.1, in step with the joplin CLI. joplin 3.7.1 asks for @joplin/lib ~3.7, and @joplin/lib 3.7.4 (2026-11-12) depends on undici 8, which requires node >=22.19: on this image's Debian node 20 the engine-strict `npm install` fails and no image builds. The `overrides` hold every @joplin package the CLI pulls at 3.7.1. Lift this cap together with joplin itself, once the image runs node >=22.19.",
+      "matchPackageNames": [
+        "@joplin/lib",
+        "@joplin/renderer",
+        "@joplin/utils",
+        "@joplin/htmlpack",
+        "@joplin/onenote-converter"
+      ],
+      "allowedVersions": "<3.7.4"
+    },
+    {
       "description": "js-yaml STAYS ON 4.x. The `overrides` pin exists only to force a CVE-fixed js-yaml under @joplin/lib (prototype pollution, fixed in 4.1.1). js-yaml 5 changes what @joplin/lib's front-matter code relies on: load('') throws instead of returning undefined, a bare '---' loads as \"\" instead of null, an empty string dumps as a bare key that reads back as null, and 'y' loses its quotes. Lift this cap only when @joplin/lib itself depends on js-yaml 5 (Renovate MR !91, closed).",
       "matchPackageNames": [
         "js-yaml"
