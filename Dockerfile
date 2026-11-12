@@ -103,6 +103,6 @@ RUN /app/smoke-auth.sh
 
 EXPOSE 8080
 
-# nginx (8080) validates MCP_BEARER_TOKEN from Authorization header or ?token= query param,
+# nginx (8080) validates MCP_BEARER_TOKEN from the Authorization header only,
 # then proxies to supergateway (8081, internal) using streamableHttp transport.
 ENTRYPOINT ["/app/start.sh"]
