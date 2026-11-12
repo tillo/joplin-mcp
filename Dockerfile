@@ -96,8 +96,13 @@ RUN supergateway --stdio "python /app/joplin_server_mcp.py" \
     node /app/smoke.mjs 9099; rc=$?; kill "$gw"; \
     [ "$rc" = 0 ] || tail -20 /tmp/smoke-gateway.log; rm -f /tmp/smoke-gateway.log; exit "$rc"
 
+# Auth smoke (fails the build): only an Authorization: Bearer header gets past
+# nginx; ?token= and no/wrong credential get 401. See smoke-auth.sh.
+COPY smoke-auth.sh /app/smoke-auth.sh
+RUN /app/smoke-auth.sh
+
 EXPOSE 8080
 
-# nginx (8080) validates MCP_BEARER_TOKEN from Authorization header or ?token= query param,
+# nginx (8080) validates MCP_BEARER_TOKEN from the Authorization header only,
 # then proxies to supergateway (8081, internal) using streamableHttp transport.
 ENTRYPOINT ["/app/start.sh"]

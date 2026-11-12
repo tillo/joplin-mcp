@@ -4,7 +4,7 @@ HTTP/SSE wrapper around [`erickt23/joplin-server-mcp`](https://github.com/erickt
 
 The upstream project ships a stdio MCP server. This image puts it behind:
 - `supergateway` to expose it as **streamable HTTP / SSE**, and
-- `nginx` for **bearer-token auth** (header or `?token=` query param), so the endpoint can be safely published behind your reverse proxy.
+- `nginx` for **bearer-token auth** (`Authorization: Bearer` header only; a `?token=` query parameter is refused), so the endpoint can be safely published behind your reverse proxy.
 
 It also carries two small patches:
 
