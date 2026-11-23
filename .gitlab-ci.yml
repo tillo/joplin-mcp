@@ -1,5 +1,8 @@
 include:
   - project: mdapi/ci-templates
+    file: /dast.yml
+    ref: main
+  - project: mdapi/ci-templates
     file: /sast.yml
     ref: main
   - project: mdapi/ci-templates
@@ -18,6 +21,7 @@ include:
 stages:
   - build
   - scan
+  - web-scan
   - notify
   - code-scan
 
@@ -155,3 +159,21 @@ sast:
 
 sca-source:
   extends: .osv-source
+
+# Passive DAST of the image this pipeline built (ci-templates /dast.yml,
+# infra-7rog.31.16): ZAP's baseline spider, no attacks, non-blocking; the
+# DefectDojo sync imports zap-report.xml from this job name.
+# nginx's bearer gate in front of the stdio MCP server; a placeholder token, and
+# no Joplin credentials, so no tool call can reach a real Joplin.
+dast-baseline:
+  extends: .zap-baseline
+  needs: [buildkit]
+  # The image this pipeline built, on zot: mdapi/<project> on the default
+  # branch, mdapi-dev/<project> elsewhere (ci-templates .zot-built-image).
+  rules: !reference [.zot-built-image, rules]
+  services:
+    - name: ${BUILT_IMAGE}
+      alias: app
+  variables:
+    DAST_TARGET: http://app:8080/
+    MCP_BEARER_TOKEN: 'dast-placeholder'
