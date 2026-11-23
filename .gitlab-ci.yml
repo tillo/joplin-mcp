@@ -1,5 +1,8 @@
 include:
   - project: mdapi/ci-templates
+    file: /sast.yml
+    ref: main
+  - project: mdapi/ci-templates
     file: /buildkit-before-script.yml
     ref: main
   - project: mdapi/ci-templates
@@ -16,6 +19,7 @@ stages:
   - build
   - scan
   - notify
+  - code-scan
 
 buildkit:
   image:
@@ -142,3 +146,12 @@ notify-failure:
   extends: .notify-failure
 secret-scan:
   extends: .secret-scan
+
+# Source scans (mdapi/ci-templates /sast.yml, infra-7rog.39/.40): Semgrep CE and
+# osv-scanner on the default branch, non-blocking. The job NAMES are what the
+# DefectDojo sync imports (sast -> semgrep-report.json, sca-source -> osv-report.json).
+sast:
+  extends: .semgrep
+
+sca-source:
+  extends: .osv-source
